@@ -1,0 +1,454 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+{% block title %}Invoice - Order #{{ order.order_id }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .invoice-container {
+        margin-top: 30px;
+        margin-bottom: 50px;
+    }
+
+    .invoice-card {
+        border: none;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+    }
+
+    .order-success-alert {
+        background-color: #f0fff4;
+        color: #28a745;
+        font-size: 1.1rem;
+        font-weight: 500;
+        padding: 12px;
+        text-align: center;
+        margin-bottom: 20px;
+        border-radius: 6px;
+    }
+
+    .order-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+
+    .invoice-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #2d3748;
+        margin: 0;
+    }
+
+    .invoice-date {
+        color: #718096;
+        font-size: 0.9rem;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .info-section {
+        margin-bottom: 25px;
+    }
+
+    .info-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .info-item {
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+    }
+
+    .order-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+    }
+
+    .order-table th {
+        background-color: #f7fafc;
+        padding: 12px 15px;
+        text-align: left;
+        font-weight: 600;
+        color: #4a5568;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .order-table td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #edf2f7;
+        vertical-align: middle;
+    }
+
+    .product-cell {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .product-image {
+        width: 50px;
+        height: 50px;
+        object-fit: cover;
+        border-radius: 4px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .summary-row td,
+    .grand-total-row td {
+        padding: 12px 15px;
+        background-color: #f7fafc;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .summary-row div,
+    .grand-total-row div {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .discount-row td {
+        color: #e53e3e;
+    }
+
+    .grand-total-row td {
+        background-color: #ebf8ff;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+
+    .grand-total-amount {
+        color: #3182ce;
+        font-size: 1.2rem;
+        font-weight: 700;
+    }
+
+    .support-footer {
+        text-align: center;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #e2e8f0;
+        color: #4a5568;
+    }
+
+    @media (max-width: 768px) {
+        .order-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .status-badge {
+            align-self: flex-start;
+            margin-top: 5px;
+        }
+
+        .order-table th,
+        .order-table td {
+            padding: 10px 8px;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .order-table {
+            display: block;
+            overflow-x: auto;
+        }
+
+        .order-table thead {
+            display: none;
+        }
+
+        .order-table tr {
+            display: block;
+            margin-bottom: 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .order-table td {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            border-bottom: 1px dotted #e2e8f0;
+        }
+
+        .order-table td:before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: #4a5568;
+            margin-right: auto;
+            padding-right: 10px;
+        }
+
+        .product-cell {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .summary-row div,
+        .grand-total-row div {
+            flex-direction: row;
+            justify-content: space-between;
+        }
+    }
+
+    .status-pending { background-color: #fffaf0; color: #dd6b20; }
+    .status-confirmed { background-color: #ebf8ff; color: #3182ce; }
+    .status-shipped { background-color: #f0fff4; color: #38a169; }
+    .status-delivered { background-color: #f0fff4; color: #2f855a; }
+    .status-canceled { background-color: #fff5f5; color: #c53030; }
+
+
+    @media print {
+    body {
+        padding: 20px;
+        font-size: 12px;
+    }
+    .btn, .order-filters {
+        display: none !important;
+    }
+    .order-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .order-table th, .order-table td {
+        padding: 6px;
+        border: 1px solid #ddd;
+    }
+    .product-image {
+        max-width: 40px;
+        max-height: 40px;
+    }
+    .invoice-card {
+        border: none;
+        box-shadow: none;
+    }
+    .status-badge {
+        background-color: transparent !important;
+        border: 1px solid #000;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="breadcrumb-container">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{% url 'user:home' %}">
+                        <i class="bi bi-house-fill"></i>
+                        <span>Home</span>
+                    </a>
+                </li>
+                <li class="breadcrumb-divider">
+                    <i class="bi bi-chevron-right"></i>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page">Invoice</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+<div class="container mb-3 mt-3">
+    <div class="order-success-alert">
+            🎉 Order Placed Successfully!
+        </div>
+</div>
+
+<div class="container invoice-container" id="invoice-to-print">
+    <div class="text-right mb-3">
+        {% if user.is_staff and user.is_superuser %}
+        <button onclick="printInvoice()" class="btn btn-primary mr-2">
+            <i class="fas fa-print"></i> Print Invoice
+        </button>
+        {% endif %}
+        <button onclick="downloadPDF()" class="btn btn-success">
+            <i class="fas fa-file-pdf"></i> Download PDF
+        </button>
+    </div>
+    <div class="card invoice-card p-3 p-md-4">
+        <div class="order-header">
+            <div>
+                <h1 class="invoice-title">Invoice #{{ order.order_id }}</h1>
+                <p class="invoice-date">Date: {{ order.created_at|date:"F j, Y, g:i A" }}</p>
+            </div>
+            <span class="status-badge status-{{ order.status }}">
+                {{ order.get_status_display }}
+            </span>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="info-section">
+                    <h3 class="info-title">Customer Information</h3>
+                    <p class="info-item"><strong>Name:</strong> {{ order.shipping_info.full_name }}</p>
+                    <p class="info-item"><strong>Email:</strong> {{ order.shipping_info.email }}</p>
+                    <p class="info-item"><strong>Phone:</strong> {{ order.shipping_info.phone }}</p>
+                </div>
+            </div>
+
+            <div class="col-md-6 mb-4">
+                <div class="info-section">
+                    <h3 class="info-title">Shipping Information</h3>
+                    <p class="info-item"><strong>Address:</strong> {{ order.shipping_info.address }}</p>
+                    <p class="info-item"><strong>City:</strong> {{ order.shipping_info.city }}</p>
+                    <p class="info-item">
+                        <strong>Delivery:</strong> {{ order.shipping_info.get_delivery_location_display }} (৳{{ order.shipping_info.get_delivery_cost }})
+                    </p>
+                    {% if order.shipping_info.special_note %}
+                        <p class="info-item"><strong>Note:</strong> {{ order.shipping_info.special_note }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="order-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th class="text-center">Size</th>
+                        <th class="text-center">Color</th>
+                        <th class="text-center">Qty</th>
+                        <th class="text-center">Price</th>
+                        <th class="text-center">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in order_items %}
+                    <tr>
+                        <td data-label="Product">
+                            <div class="product-cell">
+                                {% if item.product.product_image %}
+                                <img src="{{ item.image.url }}" alt="{{ item.product.product_name }}" 
+                                    onerror="this.src='{% static 'images/default_product.png' %}'" class="product-image">
+                                {% endif %}
+                                <span>{{ item.product.product_name }}</span>
+                            </div>
+                        </td>
+                        <td class="text-center" data-label="Size">{{ item.size|default:"-" }}</td>
+                        <td class="text-center" data-label="Color">{{ item.color|default:"-" }}</td>
+                        <td class="text-center" data-label="Qty">{{ item.quantity }}</td>
+                        <td class="text-center" data-label="Price">৳{{ item.price }}</td>
+                        <td class="text-center" data-label="Amount">৳{% widthratio item.quantity 1 item.price %}</td>
+                    </tr>
+                    {% endfor %}
+
+                    <!-- Delivery Row -->
+                    <tr class="summary-row">
+                        <td colspan="6">
+                            <div>
+                                <span><strong>Delivery Charge &nbsp;&nbsp;&nbsp;</strong></span>
+                                <span>৳{{ order.shipping_info.get_delivery_cost|floatformat:2 }}</span>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Discount Row -->
+                    {% if order.discount_amount > 0 %}
+                    <tr class="summary-row discount-row">
+                        <td colspan="6">
+                            <div>
+                                <span><strong>Discount{% if order.promo_code_used %} ({{ order.promo_code_used }}){% endif %} &nbsp;&nbsp;&nbsp;</strong></span>
+                                <span class="text-danger">-৳ {{ order.discount_amount|floatformat:2 }}</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+
+                    <!-- Grand Total Row -->
+                    <tr class="grand-total-row">
+                        <td colspan="6">
+                            <div>
+                                <span><strong>Grand Total &nbsp;&nbsp;&nbsp;</strong></span>
+                                <span class="grand-total-amount">৳ {{ order.grand_total|floatformat:2 }}</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="support-footer">
+            <p>📞 Need help? Contact <strong>Customer Support</strong> at <strong>01628768066</strong></p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        // Print function
+function printInvoice() {
+    const invoiceElement = document.getElementById('invoice-to-print');
+    const originalContents = document.body.innerHTML;
+    
+    // Get the HTML of just the invoice
+    const invoiceHtml = invoiceElement.innerHTML;
+    
+    // Replace the body content with just the invoice
+    document.body.innerHTML = invoiceHtml;
+    
+    // Add print-specific styles
+    const style = document.createElement('style');
+    style.innerHTML = `
+        @media print {
+            body { padding: 20px; }
+            .btn { display: none !important; }
+            .order-table { width: 100%; border-collapse: collapse; }
+            .order-table th, .order-table td { padding: 8px; border: 1px solid #ddd; }
+            .product-image { max-width: 50px; max-height: 50px; }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Print and then restore the original content
+    window.print();
+    document.body.innerHTML = originalContents;
+    window.location.reload();
+}
+
+// PDF download function using html2pdf.js
+function downloadPDF() {
+    // Include html2pdf.js in your base template or via CDN
+    const element = document.getElementById('invoice-to-print');
+    const opt = {
+        margin: 10,
+        filename: 'invoice_'+document.querySelector('.invoice-title').textContent.trim()+'.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    
+    // Generate PDF
+    html2pdf().from(element).set(opt).save();
+}
+    </script>
+{% endblock extra_js %}
+    

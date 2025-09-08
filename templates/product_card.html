@@ -1,0 +1,50 @@
+<div class="swiper-slide">
+    <div class="product-single-card">
+        <a href="{% url 'product:product-details' product_slug=product.product_slug %}" 
+            class="trackable-product" 
+            data-product-slug="{{ product.product_slug }}"
+            style="text-decoration: none;">
+           <div class="product-card-img">
+               <img src="{{ product.product_image.url }}" alt="{{ product.product_name }}" class="lazyload" data-src={{product.product_image.url}} loading="lazy">
+                 </div>
+            <div class="product-card-content pb-0">
+               <h6 class="product-card-title">{{ product.product_name }}</h6>
+                <ul class="product-card-ratings">
+                {% with full_stars=product.average_rating|floatformat:0 %}
+                {% for i in "12345"|make_list %}
+                {% if i|add:0 <= full_stars|add:0 %}
+                    <li><i class="bi bi-star-fill"></i></li>
+                    {% elif i|add:0 == full_stars|add:1 and product.average_rating|floatformat:1|slice:"-1"|add:0 >= 5 %}
+                        <li><i class="bi bi-star-half"></i></li>
+                    {% else %}
+                <li><i class="bi bi-star"></i></li>
+                {% endif %}
+                {% endfor %}
+                {% endwith %}
+                <li class="review-count">({{ product.total_reviews }} Reviews)</li>
+                                            </ul>
+                                            <div class="product-card-price d-flex justify-content-center align-items-center">
+                                                <p class="main-price">&#2547;{{product.discounted_price }}</p>
+                                                <p class="discount-price">&#2547;{{ product.product_price }}</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <div class="product-card-buttons">
+                                        {% if product.product_type == "clothes" %}
+                                        <a class="view-details-button" href="{% url 'product:product-details' product.product_slug %}">
+                                            <i class="bi bi-eye"></i>&nbsp;View Details
+                                        </a>
+                                        {% else %}
+                                        <div class="product-card-button-group">
+                                            <a href="" class="buy-noww buy-now-btn" data-product="{{ product.id }}"><i class="bi bi-bag"></i>&nbsp;Buy now</a>
+                                            <a href="" class="add-to-cartt add-to-cart-btn" data-product="{{ product.id }}"><i class="bi bi-cart-check-fill"></i>&nbsp;Add to cart</a>
+                                        </div>
+                                        <div class="mobile-buy-button">
+                                            <a href="" class="buy-noww buy-now-mobile" data-product="{{ product.id }}"><i class="bi bi-bag"></i>&nbsp;Buy now</a>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                                    
+                                

@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block title %}Contact{% endblock title %}
+{% block extra_css %}
+<style>
+
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="breadcrumb-container">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{% url 'user:home' %}">
+                        <i class="bi bi-house-fill"></i>
+                        <span>Home</span>
+                    </a>
+                </li>
+                <li class="breadcrumb-divider">
+                    <i class="bi bi-chevron-right"></i>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page">Contact</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+    <div class="custom-container mb-5 mt-3">
+        <div class="category-header mb-3">
+            <h5 class="category-title">Get in touch</h5>
+        </div>
+        <div class="d-flex justify-content-center align-items-center email-verify">
+            <div class="card shadow p-4" style="max-width: 1000px; width: 100%; background-color: var(--sub-color); border-radius: 14px; border: none;">
+                <p class="text-center text-muted">
+                    Have a inquiry or some feedback for us? Fill out the form below to contact our team. please contact us at ponti.clinton@gmail.com
+                </p>
+                <div class="row">
+                    {% if messages %}
+                        <div class="col-12">
+                            <div class="alert-wrapper">
+                                {% for message in messages %}
+                                    <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %} alert-dismissible fade show" role="alert">
+                                        <strong>{% if message.tags == 'error' %}Oops!{% else %}Success!{% endif %}</strong> {{ message }}
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                        </button>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+                <form method="POST">
+                    {% csrf_token %}
+                    {{form|crispy}}
+                    <div class="d-flex justify-content-center">
+                        <button type="submit" class="btn btn-success mt-3">Send Message</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endblock content %}
+    

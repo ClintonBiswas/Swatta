@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Category-brand-products{% endblock %}
+
+{% block extra_css %}
+    <style>
+        /* Filter styles */
+.filter-section {
+    background: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.filter-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: #333;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 8px;
+}
+
+.filter-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.filter-list li {
+    margin-bottom: 8px;
+}
+
+.filter-link {
+    color: #555;
+    text-decoration: none;
+    transition: all 0.3s;
+    display: block;
+    padding: 5px 0;
+}
+
+.filter-link:hover, .filter-link.active {
+    color: #8A0000;
+    font-weight: 500;
+}
+
+.sort-dropdown {
+    max-width: 200px;
+}
+.sort-dropdown select:focus {
+    outline: none;
+    box-shadow: none;
+    border: 1px solid #8A0000
+}
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .filter-section {
+        display: none; /* You'll implement mobile filters later */
+    }
+    
+    .sort-dropdown {
+        max-width: 150px;
+    }
+}
+        @media (max-width: 992px){
+            .category-header{
+                margin-top: 65px;
+            }
+        }
+    </style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="custom-container py-5">
+    <div class="category-header">
+                <h5 class="category-title">{{category.title}} Essentials</h5>
+            </div>
+    <div class="row">
+        <!-- Left Side Filters -->
+        <div class="col-md-2">
+            <div class="filter-section mb-4">
+                <h5 class="filter-title">Sub Categories</h5>
+                <ul class="filter-list">
+                    {% for subcat in subcategories %}
+                    <li>
+                        <a href="#" class="filter-link subcategory-filter" data-slug="{{ subcat.slug }}">
+                            {{ subcat.title }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            
+            <div class="filter-section">
+                <h5 class="filter-title">Brands</h5>
+                <ul class="filter-list">
+                    {% for brand in brands %}
+                    <li>
+                        <a href="#" class="filter-link brand-filter" data-slug="{{ brand.slug }}">
+                            {{ brand.title }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Right Side Content -->
+        <div class="col-md-10">
+            <div class="mb-3 d-flex justify-content-between align-items-center">
+                <div class="sort-dropdown">
+                    <select id="sort-by" class="form-select">
+                        <option value="">Sort By</option>
+                        <option value="most_viewed">Most Viewed</option>
+                        <option value="price_low_high">Price: Low to High</option>
+                        <option value="price_high_low">Price: High to Low</option>
+                        <option value="most_rated">Most Rated</option>
+                    </select>
+                </div>
+            </div>
+            
+            {% if category_product %}
+            <div class="mt-3">
+                <div id="main-product-card">
+                    {% for product in category_product %}
+                     {% include 'withoutsliderproduct_card.html' %}
+                    {% endfor %}
+                </div>
+                
+                {% if category_product.has_next %}
+                <div class="text-center mt-4">
+                    <button id="load-more" class="btn btn-primary" 
+                            data-page="2" 
+                            data-category="{{ category.slug }}"
+                            data-subcategory="{{ request.GET.subcategory|default:'' }}"
+                            data-brand="{{ request.GET.brand|default:'' }}"
+                            data-sort="{{ request.GET.sort_by|default:'' }}">
+                        Load More
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+
+{% block extra_js %}
+    <script>
+$(document).ready(function() {
+    // Variables to store current filters
+    let currentFilters = {
+        subcategory: '',
+        brand: '',
+        sort_by: ''
+    };
+    
+    // Function to load products via AJAX
+function loadProducts(page = 1, append = false) {
+    const url = new URL(window.location.href);
+    const params = new URLSearchParams();
+    
+    if (currentFilters.subcategory) params.append('subcategory', currentFilters.subcategory);
+    if (currentFilters.brand) params.append('brand', currentFilters.brand);
+    if (currentFilters.sort_by) params.append('sort_by', currentFilters.sort_by);
+    params.append('page', page);
+    
+    $.ajax({
+        url: url.pathname + '?' + params.toString(),
+        type: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        success: function(response) {
+            if (response.error) {
+                console.error('Server error:', response.error);
+                alert('An error occurred while loading products. Please try again.');
+                return;
+            }
+            
+            if (append) {
+                renderProducts(response.products, true);
+            } else {
+                $('#main-product-card').empty();
+                renderProducts(response.products, false);
+            }
+            
+            if (response.has_next) {
+                $('#load-more').data('page', response.next_page).show();
+            } else {
+                $('#load-more').hide();
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('AJAX error:', status, error);
+            alert('Failed to load products. Please check your connection and try again.');
+        }
+    });
+}
+    
+    // Function to render products
+    function renderProducts(products, append) {
+        let html = '';
+        
+        products.forEach(function(product) {
+            // Generate your product card HTML here matching your existing structure
+            // Use the product data from the AJAX response
+            html += `
+                <div class="product-single-card">
+                    <a href="/product-details/${product.product_slug}" style="text-decoration: none;"
+                    class="trackable-product" 
+                    data-product-slug="${product.product_slug}"
+                    >
+                        <div class="product-card-img">
+                            <img src="${product.product_image}" alt="${product.product_name}">
+                        </div>
+                        <div class="product-card-content pb-0">
+                            <h6 class="product-card-title">${product.product_name}</h6>
+                            <ul class="product-card-ratings">
+                                ${generateStars(product.average_rating)}
+                                <li class="review-count">(${product.total_reviews} Reviews)</li>
+                            </ul>
+                            <div class="product-card-price d-flex justify-content-center align-items-center">
+                                <p class="main-price">&#2547;${product.discounted_price}</p>
+                                <p class="discount-price">&#2547;${product.product_price}</p>
+                            </div>
+                        </div>
+                    </a>
+                    <div class="product-card-buttons">
+                        ${product.product_type === "clothes" ? 
+                            `<a class="view-details-button" href="/product-details/${product.product_slug}">
+                                <i class="bi bi-eye"></i>&nbsp;View Details
+                            </a>` : 
+                            `<div class="product-card-button-group">
+                                <a href="" class="buy-noww buy-now-btn" data-product="${product.id}"><i class="bi bi-bag"></i>&nbsp;Buy now</a>
+                                <a href="" class="add-to-cartt add-to-cart-btn" data-product="${product.id}"><i class="bi bi-cart-check-fill"></i>&nbsp;Add to cart</a>
+                            </div>
+                            <div class="mobile-buy-button">
+                                <a href="" class="buy-noww buy-now-mobile" data-product="${product.id}"><i class="bi bi-bag"></i>&nbsp;Buy now</a>
+                            </div>`
+                        }
+                    </div>
+                </div>`;
+        });
+        
+        if (append) {
+            $('#main-product-card').append(html);
+        } else {
+            $('#main-product-card').html(html);
+        }
+        
+        // Re-bind any event handlers for new elements if needed
+    }
+    
+    // Helper function to generate star ratings
+    function generateStars(rating) {
+        let stars = '';
+        const fullStars = Math.floor(rating);
+        const hasHalfStar = (rating - fullStars) >= 0.5;
+        
+        for (let i = 1; i <= 5; i++) {
+            if (i <= fullStars) {
+                stars += '<li><i class="bi bi-star-fill"></i></li>';
+            } else if (i === fullStars + 1 && hasHalfStar) {
+                stars += '<li><i class="bi bi-star-half"></i></li>';
+            } else {
+                stars += '<li><i class="bi bi-star"></i></li>';
+            }
+        }
+        
+        return stars;
+    }
+    
+    // Filter event handlers
+    $('.subcategory-filter').click(function(e) {
+        e.preventDefault();
+        currentFilters.subcategory = $(this).data('slug');
+        currentFilters.brand = ''; // Reset brand filter when changing category
+        loadProducts(1, false);
+    });
+    
+    $('.brand-filter').click(function(e) {
+        e.preventDefault();
+        currentFilters.brand = $(this).data('slug');
+        loadProducts(1, false);
+    });
+    
+    // Sort dropdown handler
+    $('#sort-by').change(function() {
+        currentFilters.sort_by = $(this).val();
+        loadProducts(1, false);
+    });
+    
+    // Load more button handler
+    $('#load-more').click(function() {
+        const nextPage = $(this).data('page');
+        loadProducts(nextPage, true);
+    });
+});
+</script>
+{% endblock extra_js %}
+    
+    
+    

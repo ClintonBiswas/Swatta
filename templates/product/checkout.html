@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% load custom_filters %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block title %}Checkout{% endblock %}
+
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/product/checkout.css' %}">
+<style>
+    .checkout-product-card{
+        background-color: #f8f9fa;
+        padding: 10px;
+    }
+    .checkout-card{
+        border: none;
+        border-radius: 8px;
+    }
+    .btn{
+        background-color: var(--main-color) !important;
+        color: white !important;
+        border: none;
+        outline: none;
+    }
+    .form-control, .form-select {
+        border: 1px solid #e0e0e0 !important;
+        box-shadow: none !important;
+        transition: all 0.2s ease;
+        font-size: 14px;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        outline: none !important;
+        border-color: var(--main-color) !important;
+        box-shadow: 0 0 0 2px rgba(138, 0, 0, 0.1) !important;
+    }
+    .submit-order {
+        background-color: var(--main-color);
+        color: white;
+        border: none;
+        transition: all 0.2s ease;
+    }
+    
+    .submit-order:hover {
+        background-color: #700000;
+        transform: translateY(-1px);
+    }
+</style>
+{% endblock extra_css %}
+
+
+{% block content %}
+<div class="breadcrumb-container">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{% url 'user:home' %}">
+                        <i class="bi bi-house-fill"></i>
+                        <span>Home</span>
+                    </a>
+                </li>
+                <li class="breadcrumb-divider">
+                    <i class="bi bi-chevron-right"></i>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page">Checkout</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+<div class="custom-container mb-5 mt-3">
+    <div class="checkout-details">
+        <!-- Order Review Section -->
+        <div class="checkout-product-details">
+            <h5 class="checkout-order">Order Review</h5>
+            <div class="checkout-product-card">
+                {% for item in cart_items %}
+            <div class="card mb-3 checkout-card" data-product-id="{{ item.product.id }}" data-item-id="{{ item.id }}">
+                <div class="row g-0 align-items-center d-flex flex-nowrap">
+                    <div class="col-3 d-flex justify-content-center">
+                        <img src="{{ item.product_image.url }}" class="img-fluid rounded-start" alt="{{ item.product_name }}" style="height: 80px; width: 80px; object-fit: contain;"
+                        onerror="this.src='{% static 'images/default_product.png' %}'">
+                    </div>
+                    <div class="col-9">
+                        <div class="card-body p-2">
+                            <h5 class="custom-card-title" style="font-size: 14px;">{{ item.product_name }}</h5>
+                            <div class="d-flex align-items-center justify-content-between w-100 mb-2">
+                                <!-- Left Side: Quantity Buttons -->
+                                <div class="quantity d-flex align-items-center">
+                                    <button class="quantity-product-button decrement-button"><i class="bi bi-dash"></i></button>
+                                    <input type="number" class="cart-quantity text-center mx-1" value="{{ item.quantity }}" min="1" style="width: 40px;">
+                                    <button class="quantity-product-button increment-button"><i class="bi bi-plus"></i></button>
+                                </div>
+                            
+                                <!-- Right Side: Remove Button -->
+                                <button class="btn btn-danger btn-sm remove-item-button" data-item-id="{{ item.id }}">
+                                    <i class="bi bi-trash-fill"></i> Remove
+                                </button>
+                            </div>
+                            
+                            {% if item.product_size or item.product_color %}
+                                <div class="d-flex checkout-price" style="gap: 10px;">
+                                    {% if item.product_size %}
+                                    <p class="card-text mb-1">
+                                        Size: <span style="font-weight: 600; color: #700000;">
+                                            {{ item.product_size }}
+                                        </span>
+                                    </p>
+                                    {% endif %}
+
+                                    {% if item.product_color %}
+                                    <p class="card-text mb-1">
+                                        Color: <span style="font-weight: 600; color: #700000;">
+                                            {{ item.product_color }}
+                                        </span>
+                                    </p>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+
+                            
+                            <div class="d-flex checkout-price" style="gap: 10px;">
+                                <p class="card-text mb-1">
+                                    Unit Price: <span class="unit-price">৳{{ item.product_price|floatformat:2 }}</span>
+                                </p>
+                                <p class="card-text mb-1">
+                                    Total Price: <span class="item-total-price">৳{{ item.cart_total|floatformat:2 }}</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            </div>
+            
+            <div class="promocode-container">
+                <h6 class="mb-3">Have Promo Code?</h6>
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control" id="promo-code-input" placeholder="Enter code">
+                    <button class="btn btn-primary" id="apply-promo-btn">Apply</button>
+                </div>
+                <div id="promo-code-message" class="small text-danger mb-2" style="display: none;"></div>
+                
+                {# Safe promo code display #}
+                {% if 'promo_code' in request.session %}
+                    <div class="alert alert-success mt-2" id="active-promo">
+                        Promo code <strong>{{ request.session.promo_code.code }}</strong> applied!
+                        <button class="btn btn-sm btn-link p-1" id="remove-promo-btn">Remove</button>
+                    </div>
+                {% elif 'guest_promo_code' in request.session %}
+                    <div class="alert alert-success mt-2" id="active-promo">
+                        Promo code <strong>{{ request.session.guest_promo_code.code }}</strong> applied!
+                        <button class="btn btn-sm btn-link p-1" id="remove-promo-btn">Remove</button>
+                    </div>
+                {% endif %}
+            </div>
+            
+    
+            <div class="mt-4 p-3 rounded" style="background-color: #f8f9fa; border-radius: 8px !important;">
+                <h6 class="mb-3" style="font-weight: 600;">Order Summary</h6>
+                <div class="text-end">
+                    <div class="product-core-info-list">
+                        <span class="status-info">Sub total</span>
+                        <span class="status-info-value" id="subtotal" style="color: var(--main-color);">৳{{ cart_total|floatformat:2 }}</span>
+                    </div>
+                    <div class="product-core-info-list" id="discount-info" style="display: none;">
+                        <span class="status-info">Discount</span>
+                        <span class="status-info-value" id="discount-value" style="color: #dc3545;"></span>
+                    </div>
+                    <div class="product-core-info-list">
+                        <span class="status-info">Delivery Cost</span>
+                        <span class="status-info-value" id="delivery-cost" style="color: var(--main-color);">৳130.00</span>
+                    </div>
+                    <hr>
+                    <div class="product-core-info-list">
+                        <span class="status-info" style="font-size: 16px; color: var(--main-color); font-weight: 600;">Grand Total</span>
+                        <span class="status-info-value" id="grand-total" style="color: var(--main-color); font-size: 18px;">৳{{ grand_total|floatformat:2 }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order Information Section -->
+<div class="checkout-order-information">
+    <h5 class="checkout-order mb-4">Shipping Information</h5>
+    <div class="login-container p-4 rounded" style="background-color: white; box-shadow: 0 2px 12px rgba(0,0,0,0.05); border-radius: 8px !important;">
+        {% if messages %}
+        <div class="message-container">
+            {% for message in messages %}
+            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <form method="POST">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="name" class="form-label small text-muted mb-1">Full Name</label>
+                <input type="text" class="form-control py-2 px-3" id="name" name="full_name" required 
+                       value="{{ shipping_form.full_name.value|default:'' }}" placeholder="আপনার পুরো নাম লিখুন">
+            </div>
+            <div class="mb-3">
+                <label for="exampleInputEmail2" class="form-label small text-muted mb-1">Email</label>
+                <input required type="email" class="form-control py-2 px-3" id="exampleInputEmail2" name="email" 
+                       value="{{ shipping_form.email.value|default:'' }}" placeholder="আপনার ইমেল ঠিকানা লিখুন">
+            </div>
+            <div class="mb-3">
+                <label for="exampleInputPhone" class="form-label small text-muted mb-1">Phone</label>
+                <input required type="phone" class="form-control py-2 px-3" id="exampleInputPhone" name="phone" 
+                       value="{{ shipping_form.phone.value|default:'' }}" placeholder="আপনার ১১ সংখ্যার মোবাইল নম্বর লিখুন">
+            </div>
+            <div class="mb-3">
+                <label for="city" class="form-label small text-muted mb-1">City</label>
+                <input type="text" class="form-control py-2 px-3" id="city" name="city" required 
+                       value="{{ shipping_form.city.value|default:'' }}" placeholder="আপনার শহরের নাম লিখুন">
+            </div>
+            <div class="mb-3">
+                <label for="address" class="form-label small text-muted mb-1">Address</label>
+                <input type="text" class="form-control py-2 px-3" id="address" name="address" required 
+                       value="{{ shipping_form.address.value|default:'' }}" placeholder="আপনার পুরো ঠিকানা লিখুন">
+            </div>
+            <div class="mb-3">
+                <label for="special_note" class="form-label small text-muted mb-1">Special Instructions (optional)</label>
+                <input type="text" class="form-control py-2 px-3" id="special_note" name="special_note" 
+                       value="{{ shipping_form.special_note.value|default:'' }}" placeholder="কোনও বিশেষ ডেলিভারি নির্দেশাবলী (অপশনাল)">
+            </div>
+            <div class="mb-4">
+                        <label class="form-label small text-muted mb-1">Delivery Area</label>
+                        <select id="delivery-location" class="form-select py-2" name="delivery_location" required>
+                            <option value="outside_dhaka">ঢাকার বাইরে - ১৩০ টাকা</option>
+                            <option value="inside_dhaka">ঢাকার ভেতরে - ৭০ টাকা</option>
+                        </select>
+                    </div>
+            <button class="submit-order w-100 py-2 mt-2 fw-bold" style="border-radius: 6px;">
+                <i class="bi bi-lock-fill me-2"></i> Place Order Securely
+            </button>
+        </form>
+    </div>
+</div>
+    </div>
+    </div>
+
+
+{% endblock content %}
+
+
+{% block extra_js %}
+<script>
+
+</script>
+{% endblock extra_js %}
+    
+    
+    

@@ -1,0 +1,59 @@
+<div class="header-nav-category">
+    <div class="header-container">
+      <div class="header-nav-dropdown">
+        <a href="{% url 'product:category-products' 'men-fashion' %}" class="header-nav-item">
+          Men Fashion <i class="bi bi-caret-down"></i>
+        </a>
+        <ul class="header-nav-dropdown-menu">
+          {% for sub in mens_fashion_subcategories %}
+            <li><a href="{% url 'user:products_by_subcategory' sub.category.slug sub.slug %}">{{ sub.title }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="header-nav-dropdown">
+        <a href="{% url 'product:category-products' 'women-fashion' %}" class="header-nav-item">
+          Women Fashion <i class="bi bi-caret-down"></i>
+        </a>
+        <ul class="header-nav-dropdown-menu">
+          {% for sub in womens_fashion_subcategories %}
+            <li><a href="{% url 'user:products_by_subcategory' sub.category.slug sub.slug %}">{{ sub.title }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="header-nav-dropdown">
+        <a href="{% url 'product:category-products' 'kids' %}" class="header-nav-item">
+            Kids <i class="bi bi-caret-down"></i>
+        </a>
+        <ul class="header-nav-dropdown-menu">
+          {% for sub in kids_item_subcategories %}
+            <li><a href="{% url 'user:products_by_subcategory' sub.category.slug sub.slug %}">{{ sub.title }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="header-nav-dropdown">
+        <a href="{% url 'product:category-products' 'gadgets' %}" class="header-nav-item">
+          Gadgets <i class="bi bi-caret-down"></i>
+        </a>
+        <ul class="header-nav-dropdown-menu">
+          {% for sub in gadgets_subcategories %}
+            <li><a href="{% url 'user:products_by_subcategory' sub.category.slug sub.slug %}">{{ sub.title }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+      <!-- <a href="#" class="header-nav-item">Gadgets</a> -->
+      <div class="header-nav-dropdown">
+        <a href="{% url 'product:category-products' 'accessories' %}" class="header-nav-item">
+          Accessories <i class="bi bi-caret-down"></i>
+        </a>
+        <ul class="header-nav-dropdown-menu">
+          {% for sub in accessories_subcategories %}
+            <li><a href="{% url 'user:products_by_subcategory' sub.category.slug sub.slug %}">{{ sub.title }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+      <a href="{% url 'product:category-products' 'food' %}" class="header-nav-item">Food</a>
+      <a href="{% url 'product:wishlist-product'%}" class="header-nav-item">Wishlist</a>
+
+    </div>
+  </div>
+  

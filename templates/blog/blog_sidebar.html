@@ -1,0 +1,19 @@
+<aside class="blog-sidebar">
+    <section class="sidebar-section">
+        <h3 class="sidebar-title">Categories</h3>
+        <div class="category-list">
+            {% for category in categories %}
+                <a href="#" class="category-item">{{category.title}}</a>
+            {% endfor %}
+        </div>
+    </section>
+    
+    <section class="sidebar-section">
+        <h3 class="sidebar-title">Popular Tags</h3>
+        <div class="tag-cloud">
+            {% for tag in tags %}
+                <a href="#" class="tag-item">{{tag.title}}</a>
+            {% endfor %}
+        </div>
+    </section>
+</aside>

@@ -1,0 +1,589 @@
+{% extends "base.html" %}
+{% load compress %}
+{% load static %}
+{% block title %}Home{% endblock %}
+{% block extra_css %}
+{% compress css %}
+<link rel="stylesheet" href="{% static 'css/user/homepage.css' %}">
+{% endcompress %}
+<style>
+   
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="custom-container">
+    <div class="ecommerce-home">
+        <!-- Main Grid Layout -->
+        <div class="home-grid">
+            <!-- Column 1: Hero Section -->
+            <div class="hero-column">
+                <section class="hero-carousel">
+                    <div id="mainHeroCarousel" class="carousel slide" data-bs-ride="carousel">
+                        <div class="carousel-inner">
+                            {% for banner in banners %}
+                            <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                                <img src="{{ banner.banner_pic.url }}" class="hero-image" alt="{{ banner.title }}">
+                                <div class="hero-content">
+                                    <h2 style="color: black;">{{ banner.title }}</h2>
+                                    {% if banner.subtitle %}
+                                    <p>{{ banner.subtitle }}</p>
+                                    {% endif %}
+                                    <a href="{{ banner.link_url}}" class="shop-now-btn" style="font-size: 14px;">Shop Now</a>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </section>
+            </div>
+    
+            <!-- Column 2: Blog Sidebar (Hidden on mobile) -->
+            <div class="blog-sidebar">
+                <div class="sidebar-header">
+                    <h3>Latest Updates</h3>
+                    <p>News and tips from our team</p>
+                </div>
+                
+                <div class="blog-slider">
+                    {% for blog in blogs|slice:":3" %}
+                    <div class="blog-card">
+                        <div class="blog-image">
+                            <img src="{{ blog.blog_pic.url }}" alt="{{ blog.title }}">
+                        </div>
+                        <div class="blog-content">
+                            <span class="blog-date">{{ blog.created_at|date:"M d, Y" }}</span>
+                            <h4>{{ blog.title|truncatewords:8 }}</h4>
+                            <a href="{% url 'blog:blog-details' blog.slug %}" class="read-link">Read Post →</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="home-main-content">
+        <div class="feature-category mb-3">
+            <div class="category-header">
+                <h5 class="category-title">Featured Categories</h5>
+            </div>
+            <!-- Category Slider -->
+            <div class="slider-container category-slider">
+                <div class="swiper categorySwiper">
+                    <div class="swiper-wrapper">
+                        {% for category in feature_categories %}
+                        <div class="swiper-slide">
+                            <a href="{% url 'product:category-products' slug=category.slug %}" class="category-card">
+                                <div class="category-img-container">
+                                    <img src="{{category.category_pic.url}}" class="category-img" alt="{{category.title}}" loading="lazy">
+                                </div>
+                                <div class="category-content">
+                                    <h3 class="category-title-list">{{category.title}}</h3>
+                                </div>
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <!-- Navigation -->
+                    <div class="custom-swiper-button-prev">
+                        <svg width="16" height="16" viewBox="0 0 24 24"><path d="M15 6L9 12L15 18" stroke="currentColor" stroke-width="2"/></svg>
+                    </div>
+                    <div class="custom-swiper-button-next">
+                        <svg width="16" height="16" viewBox="0 0 24 24"><path d="M9 6L15 12L9 18" stroke="currentColor" stroke-width="2"/></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- most viewd products here -->
+                <div class="feature-products mb-3 mt-5">
+                <div class="category-header">
+                    <h5 class="category-title">Most Viewed Product</h5>
+                </div>
+                 <!-- most viewed product Slider -->
+                  <div class="slider-container">
+                    <div class="swiper feature-swiper">
+                        <div class="swiper-wrapper mb-3">
+                            {% for product in popular_products %}
+                                <!-- {% include 'product_card.html' %} -->
+                                 <div class="swiper-slide">
+                            <div class="product-single-card">
+                                        <div class="product-view-badge">
+                                    <i class="bi bi-eye-fill"></i> {{ product.view_count }}
+                                </div>
+                                <a href="{% url 'product:product-details' product_slug=product.product_slug %}" 
+                                    class="trackable-product" 
+                                    data-product-slug="{{ product.product_slug }}"
+                                    style="text-decoration: none;">
+                                <div class="product-card-img">
+                                    <img src="{{ product.product_image.url }}" alt="{{ product.product_name }}" class="lazyload" data-src={{product.product_image.url}} loading="lazy">
+                                        </div>
+                                    <div class="product-card-content pb-0">
+                                    <h6 class="product-card-title">{{ product.product_name }}</h6>
+                                        <ul class="product-card-ratings">
+                                        {% with full_stars=product.average_rating|floatformat:0 %}
+                                        {% for i in "12345"|make_list %}
+                                        {% if i|add:0 <= full_stars|add:0 %}
+                                            <li><i class="bi bi-star-fill"></i></li>
+                                            {% elif i|add:0 == full_stars|add:1 and product.average_rating|floatformat:1|slice:"-1"|add:0 >= 5 %}
+                                                <li><i class="bi bi-star-half"></i></li>
+                                            {% else %}
+                                        <li><i class="bi bi-star"></i></li>
+                                        {% endif %}
+                                        {% endfor %}
+                                        {% endwith %}
+                                        <li class="review-count">({{ product.total_reviews }} Reviews)</li>
+                                            </ul>
+                                            <div class="product-card-price d-flex justify-content-center align-items-center">
+                                                <p class="main-price">&#2547;{{product.discounted_price }}</p>
+                                                <p class="discount-price">&#2547;{{ product.product_price }}</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <div class="product-card-buttons">
+                                        {% if product.product_type == "clothes" %}
+                                        <a class="view-details-button" href="{% url 'product:product-details' product.product_slug %}">
+                                            <i class="bi bi-eye"></i>&nbsp;View Details
+                                        </a>
+                                        {% else %}
+                                        <div class="product-card-button-group">
+                                            <a href="" class="buy-noww buy-now-btn" data-product="{{ product.id }}"><i class="bi bi-bag"></i>&nbsp;Buy now</a>
+                                            <a href="" class="add-to-cartt add-to-cart-btn" data-product="{{ product.id }}"><i class="bi bi-cart-check-fill"></i>&nbsp;Add to cart</a>
+                                        </div>
+                                        <div class="mobile-buy-button">
+                                            <a href="" class="buy-noww buy-now-mobile" data-product="{{ product.id }}"><i class="bi bi-bag"></i>&nbsp;Buy now</a>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                                    
+                                
+                            {% endfor %}
+                        </div>
+                        <!-- Navigation -->
+                    <div class="custom-swiper-button-prev">
+                        <svg width="16" height="16" viewBox="0 0 24 24"><path d="M15 6L9 12L15 18" stroke="currentColor" stroke-width="2"/></svg>
+                    </div>
+                    <div class="custom-swiper-button-next">
+                        <svg width="16" height="16" viewBox="0 0 24 24"><path d="M9 6L15 12L9 18" stroke="currentColor" stroke-width="2"/></svg>
+                    </div>
+                    </div>
+                </div>
+                </div>
+                <!-- end -->
+        <!-- {% include 'home_product.html' %} -->
+        <div class="product-section">
+            <div class="category-header mb-3">
+                <h5 class="category-title">Top Brand's Products</h5>
+            </div>
+
+            <!-- Brand Selection Buttons -->
+            <div class="slider-container brand-slider">
+                <div class="swiper brandSwiper">
+                    <div class="swiper-wrapper">
+                        <div class="swiper-slide">
+                            <button class="brand-button active" data-brand-id="all">
+                                <span>All Brands</span>
+                            </button>
+                        </div>
+                        {% for brand in product_brands %}
+                        <div class="swiper-slide">
+                            <button class="brand-button" data-brand-id="{{ brand.id }}">
+                                <span>{{ brand.title }}</span>
+                            </button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <!-- Navigation -->
+                    <div class="custom-swiper-button-prev">
+                        <svg width="16" height="16" viewBox="0 0 24 24"><path d="M15 6L9 12L15 18" stroke="currentColor" stroke-width="2"/></svg>
+                    </div>
+                    <div class="custom-swiper-button-next">
+                        <svg width="16" height="16" viewBox="0 0 24 24"><path d="M9 6L15 12L9 18" stroke="currentColor" stroke-width="2"/></svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Product List Section -->
+            <div class="brand-wise-product" id="main-product-card">
+                <!-- Products will be loaded here via JavaScript -->
+            </div>
+
+            <!-- Loading Spinner -->
+            <div class="text-center py-4" id="loading-spinner" style="display: none;">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+
+            <!-- Load More Button -->
+            <div class="d-flex justify-content-end mt-4" id="load-more-container">
+                <button id="load-more" class="btn btn-primary"><i class="bi bi-arrow-down"></i> Load More</button>
+            </div>
+
+            <!-- feature products -->
+            <div class="feature-products mb-3 mt-5">
+                <div class="category-header">
+                    <h5 class="category-title">Featured Products</h5>
+                </div>
+                 <!-- featured product Slider -->
+                  <div class="slider-container">
+                    <div class="swiper feature-swiper">
+                        <div class="swiper-wrapper mb-3">
+                            {% for product in feature_products %}
+                                {% include 'product_card.html' %}
+                            {% endfor %}
+                        </div>
+                        <!-- Navigation -->
+                    <div class="custom-swiper-button-prev">
+                        <svg width="16" height="16" viewBox="0 0 24 24"><path d="M15 6L9 12L15 18" stroke="currentColor" stroke-width="2"/></svg>
+                    </div>
+                    <div class="custom-swiper-button-next">
+                        <svg width="16" height="16" viewBox="0 0 24 24"><path d="M9 6L15 12L9 18" stroke="currentColor" stroke-width="2"/></svg>
+                    </div>
+                    </div>
+                </div>
+                </div>
+
+            <!-- end -->
+             <!-- Trending products -->
+            <div class="feature-products mb-3 mt-5">
+                <div class="category-header">
+                    <h5 class="category-title">Trending Products</h5>
+                </div>
+                <!-- trending product Slider -->
+                <div class="slider-container">
+                    <div class="swiper feature-swiper">
+                        <div class="swiper-wrapper mb-3">
+                            {% for product in trending_products %}
+                                {% include 'product_card.html' %}
+                            {% endfor %}
+                        </div>
+                        <!-- Navigation -->
+                    <div class="custom-swiper-button-prev">
+                        <svg width="16" height="16" viewBox="0 0 24 24"><path d="M15 6L9 12L15 18" stroke="currentColor" stroke-width="2"/></svg>
+                    </div>
+                    <div class="custom-swiper-button-next">
+                        <svg width="16" height="16" viewBox="0 0 24 24"><path d="M9 6L15 12L9 18" stroke="currentColor" stroke-width="2"/></svg>
+                    </div>
+                    </div>
+                </div>
+                
+            </div>
+            <div class="kids-care-container">
+            <div class="kids-care-content">
+                <div class="kids-care-text">
+                    <h2 class="kids-care-heading">Kid's Care Collection</h2>
+                    <p class="kids-care-description">Discover essential kids' care items including educational toys, comfortable clothes, and fun accessories – all carefully curated for your little ones at Let's Shop.</p>
+                    <a href="{% url 'product:category-products' 'kids' %}" class="kids-care-button">Explore Now</a>
+                </div>
+                <div class="kids-care-image">
+                    <img src="{% static 'images/kids-again.png' %}" alt="Happy child with Kid's Care products" class="kids-image" width="500px">
+                </div>
+            </div>
+        </div>
+                     <!-- Discount products -->
+            <div class="feature-products mb-3 mt-5">
+                <div class="category-header">
+                    <h5 class="category-title">Top Discount Products</h5>
+                </div>
+                <!-- trending product Slider -->
+                <div class="slider-container">
+                    <div class="swiper feature-swiper">
+                        <div class="swiper-wrapper mb-3">
+                            {% for product in discount_products %}
+                                {% include 'product_card.html' %}
+                            {% endfor %}
+                        </div>
+                        <!-- Navigation -->
+                    <div class="custom-swiper-button-prev">
+                        <svg width="16" height="16" viewBox="0 0 24 24"><path d="M15 6L9 12L15 18" stroke="currentColor" stroke-width="2"/></svg>
+                    </div>
+                    <div class="custom-swiper-button-next">
+                        <svg width="16" height="16" viewBox="0 0 24 24"><path d="M9 6L15 12L9 18" stroke="currentColor" stroke-width="2"/></svg>
+                    </div>
+                    </div>
+                </div>
+                
+            </div>
+            <!-- end -->
+        </div>
+        
+    </div>
+</div>
+<div class="footer-features">
+    <div class="container">
+        <div class="features-grid">
+            <!-- Authentic -->
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="bi bi-check2-circle"></i>
+                </div>
+                <div class="feature-content">
+                    <h4>100% Authentic</h4>
+                    <p>All our products are 100% verified by Let's Shop</p>
+                </div>
+            </div>
+            
+            <!-- Support -->
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="bi bi-telephone-plus-fill"></i>
+                </div>
+                <div class="feature-content">
+                    <h4>24/7 Support</h4>
+                    <p>24/7 assistance for your immediate needs</p>
+                </div>
+            </div>
+            
+            <!-- Delivery -->
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="bi bi-truck"></i>
+                </div>
+                <div class="feature-content">
+                    <h4>Fastest Delivery</h4>
+                    <p>Lightning-fast delivery all over Bangladesh</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Initialize Category Swiper
+    const categorySwiper = new Swiper('.categorySwiper', {
+        slidesPerView: 'auto',
+        spaceBetween: 15,
+        centeredSlides: false,
+        navigation: {
+            nextEl: '.custom-swiper-button-next',
+            prevEl: '.custom-swiper-button-prev',
+        },
+        breakpoints: {
+            0: { slidesPerView: 3, spaceBetween: 8 },
+            576: { slidesPerView: 4, spaceBetween: 10 },
+            768: { slidesPerView: 6, spaceBetween: 12 },
+            992: { slidesPerView: 6, spaceBetween: 20 },
+        }
+    });
+
+    // Initialize Brand Swiper
+    const brandSwiper = new Swiper('.brandSwiper', {
+        slidesPerView: 'auto',
+        spaceBetween: 10,
+        centeredSlides: false,
+        navigation: {
+            nextEl: '.custom-swiper-button-next',
+            prevEl: '.custom-swiper-button-prev',
+        },
+        freeMode: true,
+        mousewheel: { forceToAxis: true },
+        breakpoints: {
+            0: { slidesPerView: 4, spaceBetween: 8 },
+            576: { slidesPerView: 4, spaceBetween: 10 },
+            768: { slidesPerView: 6, spaceBetween: 12 },
+            992: { slidesPerView: 8, spaceBetween: 15 }
+        }
+    });
+
+    // Initialize Featured Products Swiper
+    const featuredProductsSwiper = new Swiper('.feature-swiper', {
+        slidesPerView: 2,
+        spaceBetween: 15,
+        centeredSlides: false,
+        navigation: {
+            nextEl: '.custom-swiper-button-next',
+            prevEl: '.custom-swiper-button-prev',
+        },
+        breakpoints: {
+            // when window width is >= 0px (mobile)
+            0: {
+                slidesPerView: 2,
+                spaceBetween: 10
+            },
+            // when window width is >= 768px (tablet)
+            768: {
+                slidesPerView: 3,
+                spaceBetween: 15
+            },
+            // when window width is >= 1200px (laptop)
+            1200: {
+                slidesPerView: 4,
+                spaceBetween: 20
+            },
+            // when window width is >= 1400px (large screens)
+            1400: {
+                slidesPerView: 5,
+                spaceBetween: 25
+            }
+        }
+    });
+});
+
+    document.addEventListener("DOMContentLoaded", function () {
+    // Initialize Bootstrap Carousel (only if the element exists)
+    const carouselElement = document.getElementById('carouselExampleSlidesOnly');
+    if (carouselElement) {
+        new bootstrap.Carousel(carouselElement, {
+            interval: 3000, // Slide change every 3 seconds
+            pause: 'hover' // Pause when hovering over the slider
+        });
+    }
+    });
+
+
+    //new home js
+    document.addEventListener('DOMContentLoaded', function() {
+    const productContainer = document.querySelector('.brand-wise-product');
+    const loadMoreBtn = document.getElementById('load-more');
+    const loadingSpinner = document.getElementById('loading-spinner');
+    let currentBrand = 'all';
+    let currentPage = 1;
+    let isLoading = false;
+
+    // Initialize - load first page
+    loadProducts(currentBrand, currentPage);
+
+    // Brand filter buttons
+    document.querySelectorAll('.brand-button').forEach(button => {
+        button.addEventListener('click', function() {
+            // Update active state
+            document.querySelectorAll('.brand-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            this.classList.add('active');
+            
+            // Reset for new brand
+            currentBrand = this.dataset.brandId;
+            currentPage = 1;
+            productContainer.innerHTML = '';
+            
+            // Load first page of new brand
+            loadProducts(currentBrand, currentPage);
+        });
+    });
+
+    // Load more button
+    loadMoreBtn.addEventListener('click', function() {
+        currentPage++;
+        loadProducts(currentBrand, currentPage);
+    });
+
+    function loadProducts(brandId, page) {
+        if (isLoading) return;
+        
+        isLoading = true;
+        loadingSpinner.style.display = 'block';
+        loadMoreBtn.style.display = 'none';
+        
+        fetch(`/get-products-by-brand/${brandId}/?page=${page}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Append new products
+            if (data.products.length > 0) {
+                data.products.forEach(product => {
+                    productContainer.appendChild(createProductCard(product));
+                });
+            } else if (page === 1) {
+                productContainer.innerHTML = '<div class="col-12 text-center py-5">No products found</div>';
+            }
+            
+            // Update load more button
+            if (data.has_next) {
+                loadMoreBtn.style.display = 'block';
+            } else {
+                loadMoreBtn.style.display = 'none';
+            }
+            
+            isLoading = false;
+            loadingSpinner.style.display = 'none';
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            isLoading = false;
+            loadingSpinner.style.display = 'none';
+            if (page === 1) {
+                productContainer.innerHTML = '<div class="col-12 text-center py-5">Error loading products. Please try again.</div>';
+            }
+        });
+    }
+
+    function createProductCard(product) {
+        const card = document.createElement('div');
+        card.className = 'product-single-card';
+        
+        // Generate star ratings HTML
+        let starsHtml = '';
+        const fullStars = Math.floor(product.average_rating);
+        const hasHalfStar = product.average_rating % 1 >= 0.5;
+        
+        for (let i = 1; i <= 5; i++) {
+            if (i <= fullStars) {
+                starsHtml += '<li><i class="bi bi-star-fill"></i></li>';
+            } else if (i === fullStars + 1 && hasHalfStar) {
+                starsHtml += '<li><i class="bi bi-star-half"></i></li>';
+            } else {
+                starsHtml += '<li><i class="bi bi-star"></i></li>';
+            }
+        }
+        
+        card.innerHTML = `
+    <a href="/product-details/${product.product_slug}/" 
+   class="trackable-product" 
+   data-product-slug="${product.product_slug}"
+   style="text-decoration: none;">
+        <div class="product-card-img">
+            <img src="${product.product_image}" alt="${product.product_name}" loading="lazy">
+        </div>
+        <div class="product-card-content pb-0">
+            <h6 class="product-card-title">${product.product_name}</h6>
+            <ul class="product-card-ratings">
+                ${starsHtml}
+                <li class="review-count">(${product.total_reviews} Reviews)</li>
+            </ul>
+            <div class="product-card-price d-flex justify-content-center align-items-center">
+                <p class="main-price">&#2547;${product.discounted_price}</p>
+                <p class="discount-price">&#2547;${product.product_price}</p>
+            </div>
+        </div>
+    </a>
+<div class="product-card-buttons">
+    ${(product.product_size.length > 0 || product.product_colors.length > 0) ? `
+                
+                <a class="view-details-button" href="/product-details/${product.product_slug}/">
+                    <i class="bi bi-eye"></i>&nbsp;View Details
+                </a>
+            ` : `
+            <div class="mobile-buy-button">
+                <a href="#" class="buy-noww buy-now-mobile" data-product="${product.id}">
+                <i class="bi bi-bag"></i>&nbsp;Buy now
+                </a>
+            </div>
+            
+                
+                    <div class="product-card-button-group">
+                        <a href="#" class="buy-noww buy-now-btn" data-product="${product.id}">
+                            <i class="bi bi-bag"></i>&nbsp;Buy now
+                        </a>
+                        <a href="#" class="add-to-cartt add-to-cart-btn" data-product="${product.id}">
+                            <i class="bi bi-cart-check-fill"></i>&nbsp;Add to cart
+                        </a>
+                    </div>
+            `}
+        `;
+
+        
+        return card;
+    }
+    
+});
+    </script>
+{% endblock extra_js %}

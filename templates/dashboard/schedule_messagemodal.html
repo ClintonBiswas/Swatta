@@ -1,0 +1,36 @@
+<!-- Modal -->
+<div class="modal fade" id="scheduleMessageModal" tabindex="-1" aria-labelledby="scheduleMessageLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="scheduleMessageForm" method="POST" action="{% url 'product:schedule_message' %}">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title" id="scheduleMessageLabel">Schedule a Message</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+            <div class="mb-3">
+                <label for="message" class="form-label">Message</label>
+                <textarea name="message" id="message" class="form-control" rows="3" required></textarea>
+            </div>
+            <div class="mb-3">
+                <label for="scheduled_time" class="form-label">Schedule Time</label>
+                <input type="datetime-local" name="scheduled_time" id="scheduled_time" class="form-control" required>
+            </div>
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" name="send_to_all" id="send_to_all" checked>
+                <label class="form-check-label" for="send_to_all">Send to all customers</label>
+            </div>
+            <div class="mb-3" id="phoneNumbersField" style="display: none;">
+                <label for="phone_numbers" class="form-label">Phone Numbers (comma-separated)</label>
+                <input type="text" name="phone_numbers" id="phone_numbers" class="form-control">
+            </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Send Message</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

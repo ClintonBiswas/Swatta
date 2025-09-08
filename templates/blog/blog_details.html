@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{blog.title}}{% endblock title %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/blog/blog.css' %}">
+<style>
+    @media (max-width: 768px){
+        .blog-sidebar{
+            display: none;
+        }
+    }
+</style>
+{% endblock extra_css %}
+
+
+{% block content %}
+<div class="breadcrumb-container">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{% url 'blog:blogs' %}">
+                        <i class="bi bi-house-fill"></i>
+                        <span>Home</span>
+                    </a>
+                </li>
+                <li class="breadcrumb-divider">
+                    <i class="bi bi-chevron-right"></i>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page" style="font-size: 12px;">{{blog.title}}</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+<!-- blog details -->
+<div class="blog-container">
+    <div class="blog-list">
+            <article class="blog-card">
+                <div class="blog-image-container">
+                    <a href="{% url 'blog:blog-details' blog.slug %}" style="text-decoration: none;"><img src="{{blog.blog_pic.url}}" alt="{{blog.title}}" class="blog-image"></a>
+                </div>
+                
+                <div class="blog-meta">
+                    <div class="meta-item">
+                        <svg class="meta-icon" viewBox="0 0 24 24" width="16" height="16">
+                            <path d="M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4z"/>
+                        </svg>
+                        <span>Clinton Biswas</span>
+                    </div>
+                    <div class="meta-item">
+                        <svg class="meta-icon" viewBox="0 0 24 24" width="16" height="16">
+                            <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .89-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V5a2 2 0 0 0-2-2zm0 16H5V8h14v11zM9 10H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z"/>
+                        </svg>
+                        <span>{{ blog.created_at|date:"F j, Y" }}</span>
+                    </div>
+                </div>
+                
+                <h2 class="blog-title"><a href="{% url 'blog:blog-details' blog.slug %}">{{blog.title}}</a></h2>
+                
+                {% if blog.tags %}
+                <div class="blog-tags">
+                    {% for tag in blog.tags.all %}
+                        <a href="" class="tag">#{{tag.title}}</a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <div class="blog-content">
+                    {{blog.blog_details|safe}}
+                </div>
+                            <!-- Comments Section -->
+            <div class="comments-section p-3">
+                <h3 class="comments-title">Comments ({{ blog.comments.count }})</h3>
+                
+                <!-- Comment Form -->
+        <div class="comment-form-container">
+            <h4>Leave a Comment</h4>
+            <form method="post" action="{% url 'blog:add-comment' blog.slug %}" class="comment-form">
+                {% csrf_token %}
+                {% if not request.user.is_authenticated %}
+                    <div class="form-group">
+                        <label for="id_guest_name">Name (optional)</label>
+                        {{ comment_form.guest_name }}
+                    </div>
+                {% endif %}
+                <div class="form-group">
+                    <label for="id_comment">Comment</label>
+                    {{ comment_form.comment }}
+                </div>
+                <button type="submit" class="btn btn-primary">Post Comment</button>
+            </form>
+        </div>
+
+        <!-- Comments List -->
+        <div class="comments-section">
+            <h4>Comments ({{ comments.count }})</h4>
+            
+            {% for comment in comments %}
+                <div class="comment" id="comment-{{ comment.id }}">
+                    <div class="comment-header">
+                        <span class="comment-author">
+                            {% if comment.user %}
+                                {{ comment.user.name }}
+                            {% else %}
+                                {{ comment.guest_name|default:"Anonymous" }}
+                            {% endif %}
+                        </span>
+                        <span class="comment-date">{{ comment.created_at|timesince }} ago</span>
+                    </div>
+                    <div class="comment-body">
+                        {{ comment.comment|linebreaks }}
+                    </div>
+                    <div class="comment-actions">
+                        <button class="reply-btn btn btn-sm btn-primary" data-comment-id="{{ comment.id }}">
+                            Reply
+                        </button>
+                    </div>
+                    
+                    <!-- Reply Form (hidden by default) -->
+                    <div class="reply-form-container mt-3" id="reply-form-{{ comment.id }}" style="display: none;">
+                        <form method="post" action="{% url 'blog:add-reply' blog.slug comment.id %}" class="reply-form">
+                            {% csrf_token %}
+                            {% if not request.user.is_authenticated %}
+                                <div class="form-group">
+                                    <label for="id_guest_name">Name (optional)</label>
+                                    {{ reply_form.guest_name }}
+                                </div>
+                            {% endif %}
+                            <div class="form-group">
+                                <label for="id_comment">Your Reply</label>
+                                {{ reply_form.comment }}
+                            </div>
+                            <button type="submit" class="btn btn-primary">Post Reply</button>
+                            <button type="button" class="btn btn-outline-secondary cancel-reply">Cancel</button>
+                        </form>
+                    </div>
+                    
+                    <!-- Replies -->
+                    {% if comment.replies.all %}
+                        <div class="replies mt-3">
+                            {% for reply in comment.replies.all %}
+                                <div class="comment reply">
+                                    <div class="comment-header">
+                                        <span class="comment-author">
+                                            {% if reply.user %}
+                                                {{ reply.user.name }}
+                                            {% else %}
+                                                {{ reply.guest_name|default:"Anonymous" }}
+                                            {% endif %}
+                                        </span>
+                                        <span class="comment-date">{{ reply.created_at|timesince }} ago</span>
+                                    </div>
+                                    <div class="comment-body">
+                                        {{ reply.comment|linebreaks }}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            {% empty %}
+                <p class="no-comments">No comments yet. Be the first to comment!</p>
+            {% endfor %}
+        </div>
+                    </div>
+                </article>
+            </div>
+            {% include 'blog/blog_sidebar.html' %}
+        </div>
+        {% endblock %}
+        {% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle reply button clicks
+    document.querySelectorAll('.reply-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const commentId = this.getAttribute('data-comment-id');
+            const replyForm = document.getElementById(`reply-form-${commentId}`);
+            
+            // Hide all other reply forms
+            document.querySelectorAll('.reply-form-container').forEach(form => {
+                if (form.id !== `reply-form-${commentId}`) {
+                    form.style.display = 'none';
+                }
+            });
+            
+            // Toggle the clicked reply form
+            if (replyForm.style.display === 'none' || !replyForm.style.display) {
+                replyForm.style.display = 'block';
+            } else {
+                replyForm.style.display = 'none';
+            }
+        });
+    });
+    
+    // Handle cancel reply button clicks
+    document.querySelectorAll('.cancel-reply').forEach(button => {
+        button.addEventListener('click', function() {
+            const formContainer = this.closest('.reply-form-container');
+            formContainer.style.display = 'none';
+        });
+    });
+});
+</script>
+{% endblock %}
+
+    

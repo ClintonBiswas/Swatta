@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Return Policy{% endblock title %}
+{% block extra_css %}
+<style>
+
+</style>
+{% endblock extra_css %}
+
+
+{% block content %}
+<div class="breadcrumb-container">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{% url 'user:home' %}">
+                        <i class="bi bi-house-fill"></i>
+                        <span>Home</span>
+                    </a>
+                </li>
+                <li class="breadcrumb-divider">
+                    <i class="bi bi-chevron-right"></i>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page">Return policy</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+    <div class="custom-container mb-5 mt-3">
+        
+        {% if info %}
+            <div class="category-header">
+                <h5 class="category-title">{{info.title}}</h5>
+            </div>
+            <div class="info-container">
+                <p>{{info.text|safe}}</p>
+            </div>
+        {% endif %}
+            
+    </div>
+{% endblock content %}

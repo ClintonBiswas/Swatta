@@ -1,0 +1,433 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    Dashboard
+{% endblock title %}
+
+{% block extra_css %}
+<style>
+    .dashboard-container {
+        padding: 20px;
+        font-size: 14px;
+    }
+    
+    .dashboard-title {
+        margin-bottom: 30px;
+        color: #333;
+        font-size: 1.5rem;
+    }
+    
+    .order-filters {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+    
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        min-width: 180px;
+    }
+    
+    .filter-group label {
+        margin-bottom: 5px;
+        font-weight: 500;
+        font-size: 13px;
+    }
+    
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        margin-bottom: 20px;
+        border: 1px solid #e0e0e0;
+        border-radius: 5px;
+    }
+    
+    .order-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+    
+    .order-table th, .order-table td {
+        padding: 10px 12px;
+        text-align: left;
+        border-bottom: 1px solid #e0e0e0;
+        white-space: nowrap;
+        font-size: 14px !important;
+    }
+    
+    .order-table th {
+        background-color: #f5f7fa;
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+    }
+    
+    .order-table tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .status-select {
+        padding: 5px 8px;
+        border-radius: 4px;
+        border: 1px solid #ced4da;
+        background-color: white;
+        font-size: 13px;
+        cursor: pointer;
+    }
+    
+    .load-more-container {
+        text-align: center;
+        margin-top: 20px;
+    }
+    
+    .phone-link {
+        color: #2c7be5;
+        text-decoration: none;
+    }
+    
+    .phone-link:hover {
+        text-decoration: underline;
+    }
+    
+    .order-id-link {
+        color: #2c7be5;
+        text-decoration: none;
+        font-weight: 500;
+    }
+    
+    .discount-badge {
+        background-color: #f8f9fa;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+    }
+    
+    .has-discount {
+        color: #28a745;
+    }
+    
+    .no-discount {
+        color: #6c757d;
+    }
+    
+    /* Status colors */
+.status-select option[value="pending"] { color: #ffc107; }
+.status-select option[value="confirmed"] { color: #17a2b8; }
+.status-select option[value="shipped"] { color: #007bff; }
+.status-select option[value="delivered"] { color: #28a745; }
+.status-select option[value="canceled"] { color: #dc3545; }
+    
+    @media (max-width: 768px) {
+        .order-filters {
+            flex-direction: column;
+            gap: 10px;
+        }
+        .dashboard-container{
+            margin-top: 80px;
+        }
+        
+        .filter-group {
+            width: 100%;
+        }
+    }
+
+
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="dashboard-container">
+    <h1 class="dashboard-title">Order Management</h1>
+    
+    <div class="order-filters">
+        <div class="filter-group">
+            <label for="date-from">Date From:</label>
+            <input type="date" id="date-from" class="form-control date-filter">
+        </div>
+        <div class="filter-group">
+            <label for="date-to">Date To:</label>
+            <input type="date" id="date-to" class="form-control date-filter">
+        </div>
+        <div class="filter-group">
+            <label for="status-filter">Status:</label>
+            <select id="status-filter" class="form-select">
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="shipped">Shipped</option>
+                <option value="delivered">Delivered</option>
+                <option value="canceled">Canceled</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label for="search-input">Search:</label>
+            <input type="text" id="search-input" class="form-control" placeholder="Order ID, Name, Phone or Email">
+        </div>
+        <div class="filter-group">
+            <label for="search-input">Schedule a message</label>
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#scheduleMessageModal">
+                Click here
+            </button>
+        </div>
+    </div>
+    <!-- schedule modal will be here -->
+     {% include 'dashboard/schedule_messagemodal.html' %}
+
+    <div class="table-responsive">
+        <table class="order-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Order ID</th>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Phone</th>
+                    <th>Email</th>
+                    <th>Address</th>
+                    <th>Status</th>
+                    <th>Products</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Discount</th>
+                    <th>Delivery</th>
+                    <th>Total</th>
+                    
+                </tr>
+            </thead>
+            <tbody id="orders-container">
+                <!-- Orders will be loaded here via AJAX -->
+            </tbody>
+        </table>
+    </div>
+
+    <div class="load-more-container">
+        <button id="load-more" class="btn btn-primary">Load More Orders</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            let page = 1;
+            let isLoading = false;
+            let currentStatus = 'all';
+            let searchQuery = '';
+            let dateFrom = '';
+            let dateTo = '';
+
+            const ordersContainer = document.getElementById('orders-container');
+            const loadMoreBtn = document.getElementById('load-more');
+            const statusFilter = document.getElementById('status-filter');
+            const searchInput = document.getElementById('search-input');
+            const dateFromInput = document.getElementById('date-from');
+            const dateToInput = document.getElementById('date-to');
+
+            // Initial load
+            loadOrders();
+
+            // Load more orders when button clicked
+            loadMoreBtn.addEventListener('click', loadOrders);
+
+            // Filter by status
+            statusFilter.addEventListener('change', function() {
+                currentStatus = this.value;
+                resetAndLoadOrders();
+            });
+
+            // Search functionality
+            searchInput.addEventListener('input', debounce(function() {
+                searchQuery = this.value.trim();
+                resetAndLoadOrders();
+            }, 300));
+
+            // Date filter functionality
+            dateFromInput.addEventListener('change', function() {
+                dateFrom = this.value;
+                resetAndLoadOrders();
+            });
+
+            dateToInput.addEventListener('change', function() {
+                dateTo = this.value;
+                resetAndLoadOrders();
+            });
+
+            function resetAndLoadOrders() {
+                ordersContainer.innerHTML = '';
+                page = 1;
+                loadMoreBtn.style.display = 'block';
+                loadOrders();
+            }
+
+            function loadOrders() {
+                if (isLoading) return;
+                
+                isLoading = true;
+                loadMoreBtn.disabled = true;
+                loadMoreBtn.textContent = 'Loading...';
+
+                const url = new URL(window.location.href);
+                url.searchParams.set('page', page);
+                
+                if (currentStatus !== 'all') {
+                    url.searchParams.set('status', currentStatus);
+                }
+                if (searchQuery) {
+                    url.searchParams.set('search', searchQuery);
+                }
+                if (dateFrom) {
+                    url.searchParams.set('date_from', dateFrom);
+                }
+                if (dateTo) {
+                    url.searchParams.set('date_to', dateTo);
+                }
+
+                fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.orders.length > 0) {
+                        data.orders.forEach((order, index) => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${index + 1}</td>
+                                <td><a href="${order.order_url}" class="order-id-link change-color" target="_blank">#${order.order_id}</a></td>
+                                <td>${order.created_at}</td>
+                                <td>${order.customer_name}</td>
+                                <td><a href="tel:${order.customer_phone}" class="phone-link change-color">${order.customer_phone}</a></td>
+                                <td>${order.customer_email}</td>
+                                <td>${order.customer_address}</td>
+                                <td>
+                                    <select class="status-select" data-order-id="${order.id}" data-previous-value="${order.status}">
+                                        ${order.status_options.map(option => 
+                                            `<option value="${option}" ${option === order.status ? 'selected' : ''}>
+                                                ${option.charAt(0).toUpperCase() + option.slice(1)}
+                                            </option>`
+                                        ).join('')}
+                                    </select>
+                                </td>
+                                <td>${order.products_list.slice(0,40)}...</td>
+                                <td>${order.total_quantity}</td>
+                                <td>৳${order.total_price.toFixed(2)}</td>
+                                <td>
+                                    <span class="discount-badge ${order.has_discount ? 'has-discount' : 'no-discount'}">
+                                        ${order.has_discount ? '৳' + order.discount_amount.toFixed(2) + (order.promo_code_used ? ' (' + order.promo_code_used + ')' : '') : 'None'}
+                                    </span>
+                                </td>
+                                <td>৳${order.delivery_cost.toFixed(2)}</td>
+                                <td>৳${order.grand_total.toFixed(2)}</td>
+                                
+                            `;
+                            ordersContainer.appendChild(row);
+                        });
+                    ordersContainer.addEventListener('click', function (e) {
+                        if (e.target.classList.contains('change-color')) {
+
+                            e.target.style.color = "red";
+                            e.target.style.fontWeight = "bold";
+                        }
+                    });
+
+
+                        // Add event listeners to new status selects
+                        document.querySelectorAll('.status-select').forEach(select => {
+                            select.addEventListener('change', updateOrderStatus);
+                        });
+
+                        page++;
+                        loadMoreBtn.disabled = !data.has_next;
+                    } else {
+                        if (page === 1) {
+                            ordersContainer.innerHTML = '<tr><td colspan="11" class="text-center">No orders found</td></tr>';
+                        }
+                        loadMoreBtn.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                })
+                .finally(() => {
+                    isLoading = false;
+                    loadMoreBtn.textContent = 'Load More Orders';
+                });
+            }
+
+            function updateOrderStatus(event) {
+                const orderId = event.target.dataset.orderId;
+                const newStatus = event.target.value;
+                const previousValue = event.target.dataset.previousValue;
+
+                fetch(`/update-order-status/${orderId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        'status': newStatus
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => { throw new Error(err.error || 'Failed to update status'); });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        showToast('Order status updated successfully!', 'success');
+                        event.target.dataset.previousValue = newStatus;
+                    } else {
+                        throw new Error(data.error || 'Failed to update status');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast(error.message || 'Error updating order status', 'error');
+                    event.target.value = previousValue;
+                });
+            }
+
+            // Helper function to get CSRF token
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+
+            // Debounce function to limit how often a function is called
+            function debounce(func, wait) {
+                let timeout;
+                return function() {
+                    const context = this, args = arguments;
+                    clearTimeout(timeout);
+                    timeout = setTimeout(() => {
+                        func.apply(context, args);
+                    }, wait);
+                };
+            }
+
+        });
+document.getElementById("send_to_all").addEventListener("change", function() {
+    const phoneField = document.getElementById("phoneNumbersField");
+    phoneField.style.display = this.checked ? "none" : "block";
+});
+    </script>
+{% endblock extra_js %}

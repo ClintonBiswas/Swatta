@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Registration{% endblock title %}
+
+{% block extra_css %}
+<style>
+
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+    <div class="container register-section py-5">
+        <div class="row justify-content-center align-items-center">
+            <div class="col-12 col-md-8">
+                <div class="login-container shadow p-4">
+                    <div class="row">
+                        <!-- Login Image Section -->
+                        <div class="col-md-6 login-image">
+                            <img class="img-fluid" src="{% static 'images/register.png' %}" alt="">
+                        </div>
+                        <!-- Login Form Section -->
+                        <div class="col-md-12 col-lg-6">
+                            <div class="login-text mb-4 text-center">
+                                <h3>Registration Form</h3>
+                                <p>Signing up is quick, easy and free</p>
+                            </div>
+                            <div class="row">
+                                {% if messages %}
+                                    <div class="col-12">
+                                        <div class="alert-wrapper">
+                                            {% for message in messages %}
+                                                <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %} alert-dismissible fade show" role="alert">
+                                                    <strong>{% if message.tags == 'error' %}Oops!{% else %}Success!{% endif %}</strong> {{ message }}
+                                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                                    </button>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <form action="" method="POST">
+                                {% csrf_token %}
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">Full Name</label>
+                                    <input type="text" class="form-control" id="name" name="name" required aria-describedby="nameHelp" placeholder="Enter your full name">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="exampleInputEmail2" class="form-label">Email address</label>
+                                    <input required type="email" class="form-control" id="exampleInputEmail2" name="email" aria-describedby="emailHelp" placeholder="Enter your email">
+                                </div>
+                                {% comment %} <div class="mb-3">
+                                    <label for="exampleInputPhone" class="form-label">Phone</label>
+                                    <input required type="phone" class="form-control" id="exampleInputPhone" name="phone" aria-describedby="phoneHelp" placeholder="01xxxxxxxxx">
+                                </div> {% endcomment %}
+                                <div class="mb-3">
+                                    <label for="exampleInputPassword1" class="form-label">Password</label>
+                                    <input required type="password" class="form-control" id="exampleInputPassword1" name="password1" placeholder="Enter your password">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="exampleInputPassword2" class="form-label">Confirm password</label>
+                                    <input required type="password" class="form-control" id="exampleInputPassword2" name="password2" placeholder="Confirm your password">
+                                </div>
+                                <button type="submit" class="login-button mt-3">Register</button>
+                            </form>
+                            
+                            <div class="user-reg mt-4 text-center">
+                                <p>Already have an account? <span><a href="{% url 'user:login' %}">Login here</a></span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock content %}
+
+{% block extra_js %}{% endblock extra_js %}
+    
+    
+    

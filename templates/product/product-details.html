@@ -1,0 +1,562 @@
+{% extends "base.html" %}
+{% load compress %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block title %}{{products.product_name}}{% endblock %}
+
+{% block extra_css %}
+{% compress css %}
+<link rel="stylesheet" href="{% static 'css/product/product_details.css' %}">
+{% endcompress %}
+    <style>
+
+    </style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="products-home-menu-bar">
+    <div class="custom-container">
+        <ul class="home-menu-list-items">
+            <li><a href="{% url 'user:home' %}"><i class="bi bi-house menu-bar-icon"></i> Home</a></li>
+            <li><i class="bi bi-chevron-right menu-bar-divider"></i></li>
+            <li><a href="">{{ products.product_category.title }}</a></li>
+            <li><i class="bi bi-chevron-right menu-bar-divider"></i></li>
+            <li class="product-name">{{ products.product_name|truncatechars:50 }}</li>
+        </ul>
+    </div>
+</div>
+
+<div class="custom-container">
+    <div class="product-details-container">
+        <!-- Left: Product Image -->
+<div class="product-details-image">
+    <a href="{{ products.product_image.url }}" data-lightbox="product-images" data-title="{{ products.product_name }}">
+        <img id="main-product-image" src="{{ products.product_image.url }}" alt="{{ products.product_name }}" class="zoomable-image lazyload" data-src="{{ products.product_image.url }}" loading="lazy">
+    </a>
+    {% if product_multiple_images %}
+    <div class="product-thumbnails" id="product-thumbnails">
+        {% for image in product_multiple_images %}
+            <a href="{{ image.image.url }}" 
+               data-lightbox="product-images" 
+               data-title="{{ image.alt_text|default:products.product_name }}" 
+               class="thumbnail-link">
+                <img class="thumbnail lazyload {% if forloop.first %}active{% endif %}" 
+                    src="{{ image.image.url }}" 
+                    alt="{{ image.alt_text|default:products.product_name }}" 
+                    onclick="updateMainImage(this); return false;" 
+                    data-src="{{ image.image.url }}" 
+                    loading="lazy"
+                    data-color-id="{{ image.color.id|default:'' }}">
+            </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+        <!-- Right: Product Details -->
+        <div class="product-details-section">
+            <div class="wishlist-container">
+                {% if user.is_authenticated %}
+                    <button class="wishlist-btn" data-product-id="{{ products.id }}">
+                        <i class="bi {% if products in user.wishlist.products.all %}bi-heart-fill{% else %}bi-heart{% endif %}"></i>
+                        <span class="wishlist-text">
+                            {% if products in user.wishlist.products.all %}Added to wishlist{% else %}Add to wishlist{% endif %}
+                        </span>
+                    </button>
+                {% else %}
+                    <button class="wishlist-btn" onclick="window.location.href='{% url 'user:login' %}?next={{ request.path }}'">
+                        <i class="bi bi-heart"></i>
+                        <span class="wishlist-text">Add to wishlist</span>
+                    </button>
+                {% endif %}
+            </div>
+            
+            <div class="product-title">
+                <h1>{{ products.product_name }}</h1>
+            </div>
+            
+            <div class="product-meta">
+                <div class="product-rating">
+                    <div class="stars">
+                        {% with full_stars=products.average_rating|floatformat:0 %}
+                            {% for i in "12345"|make_list %}
+                                {% if i|add:0 <= full_stars|add:0 %}
+                                    <i class="bi bi-star-fill"></i>
+                                {% else %}
+                                    <i class="bi bi-star"></i>
+                                {% endif %}
+                            {% endfor %}
+                        {% endwith %}
+                    </div>
+                    <span class="review-count">({{ products.total_reviews }} reviews)</span>
+                </div>
+                
+                <div class="product-code">
+                    <span>Product Code:</span>
+                    <strong>{{ products.product_code }}</strong>
+                </div>
+            </div>
+            
+            <div class="product-price-section">
+                <div class="price-container">
+                    <div class="current-price">&#2547;{{ products.discounted_price }}</div>
+                    {% if products.discounted_price != products.product_price %}
+                    <div class="original-price">&#2547;{{ products.product_price }}</div>
+                    <div class="discount-badge">Save {{ products.product_category.discount }}%</div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="availability">
+                <span>Availability:</span>
+                <strong class="{% if products.product_status %}in-stock{% else %}out-of-stock{% endif %}">
+                    {% if products.product_status %}In Stock{% else %}Out of Stock{% endif %}
+                </strong>
+            </div>
+            
+            <div class="product-categories">
+                <div class="category-badge">
+                    <i class="bi bi-tag"></i> {{ products.product_category.title }}
+                </div>
+                {% if products.product_sub_category %}
+                <div class="category-badge">
+                    <i class="bi bi-tag"></i> {{ products.product_sub_category.title }}
+                </div>
+                {% endif %}
+                {% if products.product_brand %}
+                <div class="category-badge">
+                    <i class="bi bi-tag"></i> {{ products.product_brand.title }}
+                </div>
+                {% endif %}
+            </div>
+    
+{% if products.product_size.exists or products.product_colors.exists %}
+<div class="product-variations">
+
+    {# ✅ SIZE SECTION (Only if sizes exist) #}
+    {% if products.product_size.exists %}
+    <div class="variation-section">
+        <h3>Choose Size <span class="required">*</span></h3>
+        <div class="size-selection">
+            {% for size in products.product_size.all %}
+            <label class="size-option">
+                <input type="radio" 
+                       name="size" 
+                       value="{{ size.title }}" 
+                       {% if forloop.first %}checked{% endif %} required>
+                <span>{{ size.title }}</span>
+            </label>
+            {% endfor %}
+        </div>
+
+        {# Size Guide button (hide for Saree) #}
+        {% if products.product_more_sub_category.title != 'Saree' %}
+        <button class="size-guide-btn" data-bs-toggle="modal" data-bs-target="#sizeGuideModal">
+            <i class="bi bi-rulers"></i> Size Guide
+        </button>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {# ✅ COLOR SECTION (Only if colors exist) #}
+    {% if products.product_colors.exists %}
+    <div class="variation-section">
+        <h3>Choose Color <span class="required">*</span></h3>
+        <div class="color-selection">
+            {% for color in products.product_colors.all %}
+            <label class="color-option">
+                <input type="radio" 
+                       name="color" 
+                       value="{{ color.name }}"
+                       data-color-id="{{ color.id }}"
+                       data-hex-code="{{ color.hex_code|default:'#cccccc' }}"
+                       {% if forloop.first %}checked{% endif %} required>
+                <span class="color-name" 
+                      style="{% if color.hex_code %}background-color: {{ color.hex_code }};{% endif %}">
+                    {% if not color.hex_code %}{{ color.name }}{% endif %}
+                </span>
+            </label>
+            {% endfor %}
+        </div>
+        <input type="hidden" 
+               name="color_id" 
+               id="selected_color_id" 
+               value="{{ products.product_colors.first.id|default:'' }}">
+    </div>
+    {% endif %}
+
+</div>
+{% endif %}
+
+
+    
+            <div class="quantity-selector">
+                <label for="quantity">Quantity:</label>
+                <div class="quantity">
+                    <button class="quantity-product-button decrement-button"><i class="bi bi-dash"></i></button>
+                    <input type="number" id="cart-quantity" value="1" min="1"> <!-- Use type="number" for better UX -->
+                    <button class="quantity-product-button increment-button"><i class="bi bi-plus"></i></button>
+                </div>
+            </div>
+    
+            <div class="action-buttons">
+                <button class="buy-noww btn-buy-now" data-product="{{ products.id }}" {% if not products.product_status %}disabled{% endif %}>
+                    <i class="bi bi-bag"></i> Buy Now
+                </button>
+                <button class="add-to-cartt btn-add-to-cart" data-product="{{ products.id }}" {% if not products.product_status %}disabled{% endif %}>
+                    <i class="bi bi-cart-plus"></i> Add to Cart
+                </button>
+            </div>
+            <div class="whatsapp-container">
+                <div class="or-divider">
+                    <span class="divider-line"></span>
+                    <span class="divider-text">or</span>
+                    <span class="divider-line"></span>
+                </div>
+                <a href="https://wa.me/01726288542" class="whatsapp-button">
+                    <svg class="whatsapp-icon" viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                    </svg>
+                    Order on WhatsApp
+                </a>
+            </div>
+    
+            <div class="product-share">
+                <span>Share this product:</span>
+                <div class="share-buttons">
+                    <a href="#" class="share-btn facebook"><i class="bi bi-facebook"></i></a>
+                    <a href="#" class="share-btn twitter"><i class="bi bi-twitter"></i></a>
+                    <a href="#" class="share-btn whatsapp"><i class="bi bi-whatsapp"></i></a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Size Guide Modal -->
+{% include 'productsizecart.html' %}
+    
+    <div class="product-description-container mt-3 mb-3">
+        <!-- Tab Navigation -->
+        <div class="product-des-header">
+            <ul>
+                <li><a href="#" class="tab-link active" data-tab="description">Description</a></li>
+                <li><a href="#" class="tab-link" data-tab="reviews">Customer Reviews <span>({{ products.total_reviews }})</span></a></li>
+                <li><a href="#" class="tab-link" data-tab="questions">How to order</a></li>
+            </ul>
+        </div>
+    
+        <!-- Tab Content -->
+        <div class="product-des-content">
+            <div id="description" class="tab-content active">
+                
+                {% if products.video_id %}
+                <div class="video-container mt-4">
+                        <div class="responsive-video" onclick="loadVideo(this, '{{ products.video_id }}')">
+                            <img src="https://img.youtube.com/vi/{{ products.video_id }}/hqdefault.jpg" >
+                            <div>
+                                <img src="https://img.icons8.com/ios-filled/100/ffffff/play-button-circled.png" >
+                            </div>
+                        </div>
+                </div>
+                {% endif %}
+
+
+                <p>{{products.product_details|safe}}</p>
+            </div>
+            <!-- start review -->
+            <div id="reviews" class="tab-content">
+                <div class="customer-review-container">
+                    <div class="write-review">
+                        <div class="review-title mb-5">
+                            <h5>Rate & Review This Product</h5>
+                        </div>
+                        <div class="review-form">
+                            <form method="POST">
+                                {% csrf_token %}
+                                {{form|crispy}}
+                                <button class="review-button">Submit Review</button>     
+                            </form>
+                        </div>
+                    </div>
+                    <div class="review-list">
+                        {% if products.reviews.all %}
+                        <div class="customer-review-title mb-5">
+                            <h5>Our Customer Reviews ({{ products.total_reviews }})</h5>
+                            <h5 class="customer-rating">
+                                {{ products.average_rating|floatformat:1 }}
+                            </h5>
+                            
+                            <p style="text-align: center; font-size: 18px; margin-top: 10px; color: #6A6B6C;">based on {{products.total_reviews}} reviews</p>
+                        </div>
+                        <div class="customer-review-list">
+                            {% for review in products.reviews.all %}
+                                <div class="review-item">
+                                    <div class="review-header">
+                                        <span class="review-user">
+                                            {{ review.get_display_name }}
+                                        </span>
+                                        <span class="review-rating">⭐ {{ review.rating }}</span>
+                                    </div>
+                                    <p class="review-comment">{{ review.comment }}</p>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="no-review-title">No reviews yet. Be the first to review this product!</p>
+                        {% endif %}
+                    </div>
+                    
+                </div>
+            </div>
+            <!-- end review -->
+            <div id="questions" class="tab-content">
+                <div class="how-to-order-container">
+                    <h2 class="section-title">How to Order</h2>
+                    <p class="section-intro">Watch this short video to learn how you can easily place an order on our website.</p>
+                
+                    {% if how_to_order_id %}
+                        <div class="video-container">
+                            <div class="video-thumbnail" onclick="loadVideo(this, '{{ how_to_order_id }}')">
+                                <img src="https://img.youtube.com/vi/{{ how_to_order_id }}/hqdefault.jpg" >
+                                <div>
+                                    <img src="https://img.icons8.com/ios-filled/100/ffffff/play-button-circled.png">
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+
+                    <p class="support-message">
+                        If you still have any questions, feel free to contact us via Facebook Messenger or phone. We're always here to help you!
+                    </p>
+                    
+                    <div class="contact-options">
+                        <a href="#" class="contact-button messenger-button">
+                            <i class="bi bi-chat-fill me-2"></i> Message Us on Facebook
+                        </a>
+                        <a href="tel:+1234567890" class="contact-button phone-button">
+                            <i class="bi bi-telephone-fill me-2"></i> Call Us Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            
+        </div>
+    </div>
+
+</div>
+<div class="related-products">
+    <div class="custom-container">
+        <div class="category-header mb-4 mt-4">
+            <h5 class="category-title">You may also like</h5>
+        </div>
+            <!-- product card --> 
+            <div id="main-product-card">
+                {% for product in products_category %}
+                    {% include 'withoutsliderproduct_card.html' %}
+                {% endfor %}
+            </div>
+    </div>     
+
+</div>
+
+
+    
+
+
+{% endblock content %}
+
+
+{% block extra_js %}
+<script>
+    // Select all tab links and contents
+    const tabLinks = document.querySelectorAll(".tab-link");
+    const tabContents = document.querySelectorAll(".tab-content");
+
+    // Function to handle tab switching
+    tabLinks.forEach(link => {
+        link.addEventListener("click", function (event) {
+            event.preventDefault();
+            
+            // Remove active class from all tabs
+            tabLinks.forEach(item => item.classList.remove("active"));
+            tabContents.forEach(content => content.classList.remove("active"));
+
+            // Add active class to the clicked tab and show corresponding content
+            this.classList.add("active");
+            document.getElementById(this.getAttribute("data-tab")).classList.add("active");
+        });
+    });
+
+//new js
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Lightbox
+    lightbox.option({
+        'resizeDuration': 200,
+        'wrapAround': true,
+        'showImageNumberLabel': false,
+        'positionFromTop': 100,
+        'disableScrolling': true
+    });
+
+    // Color selection functionality
+    const colorOptions = document.querySelectorAll('.color-option input[type="radio"]');
+    const mainImage = document.getElementById('main-product-image');
+    const colorIdField = document.getElementById('selected_color_id');
+    const allThumbnails = document.querySelectorAll('#product-thumbnails .thumbnail');
+    
+    // Function to update main image based on selected color
+    function updateMainImageByColor(colorId) {
+        // Find first thumbnail matching the selected color
+        const matchingThumbnail = Array.from(allThumbnails).find(thumb => {
+            return thumb.getAttribute('data-color-id') === colorId;
+        });
+        
+        // If found, update main image
+        if (matchingThumbnail) {
+            updateMainImage(matchingThumbnail);
+        }
+    }
+    
+    colorOptions.forEach(option => {
+        option.addEventListener('change', function() {
+            const colorId = this.getAttribute('data-color-id');
+            colorIdField.value = colorId;
+            
+            // Update main image to first thumbnail of selected color
+            updateMainImageByColor(colorId);
+            
+            // Update selected color style
+            document.querySelectorAll('.color-name').forEach(name => {
+                name.classList.remove('selected');
+            });
+            this.nextElementSibling.classList.add('selected');
+        });
+        
+        // Initialize with first color selected
+        if (option.checked) {
+            option.dispatchEvent(new Event('change'));
+        }
+    });
+});
+
+function updateMainImage(thumbnail) {
+    const mainImage = document.getElementById('main-product-image');
+    const mainImageLink = mainImage.parentElement;
+    
+    // Update main image and its link
+    mainImage.src = thumbnail.dataset.src;
+    mainImage.alt = thumbnail.alt;
+    mainImageLink.href = thumbnail.dataset.src;
+    mainImageLink.setAttribute('data-title', thumbnail.alt);
+    
+    // Update active thumbnail
+    document.querySelectorAll('.thumbnail').forEach(img => {
+        img.classList.remove('active');
+    });
+    thumbnail.classList.add('active');
+}
+document.addEventListener('DOMContentLoaded', function() {
+    const wishlistBtns = document.querySelectorAll('.wishlist-btn[data-product-id]');
+    
+    wishlistBtns.forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const productId = this.dataset.productId;
+            const icon = this.querySelector('i');
+            const textSpan = this.querySelector('.wishlist-text');
+            
+            try {
+                // Disable button during request
+                this.disabled = true;
+                
+                const response = await fetch('{% url "product:toggle_wishlist" %}', { 
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken'),
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({
+                            'product_id': productId  // Ensure this matches what the view expects
+                        })
+                    });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    if (data.action === 'added') {
+                        icon.classList.replace('bi-heart', 'bi-heart-fill');
+                        textSpan.textContent = 'Added to wishlist';
+                        showToast('Product added to your wishlist');
+                    } else {
+                        icon.classList.replace('bi-heart-fill', 'bi-heart');
+                        textSpan.textContent = 'Add to wishlist';
+                        showToast('Product removed from your wishlist');
+                    }
+                } else {
+                    throw new Error(data.message || 'Failed to update wishlist');
+                }
+            } catch (error) {
+                console.error('Wishlist error:', error);
+                showToast(error.message, 'error');
+            } finally {
+                this.disabled = false;
+            }
+        });
+    });
+    
+    // Helper function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    // Toast notification function
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `toast-notification ${type}`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.classList.add('fade-out');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+});
+
+    function loadVideo(el, videoId) {
+        const iframe = document.createElement('iframe');
+        iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&rel=0&modestbranding=1`;
+        iframe.frameBorder = '0';
+        iframe.allowFullscreen = true;
+        iframe.allow = "autoplay; encrypted-media";
+        iframe.loading = 'lazy';
+        iframe.style = "position:absolute;top:0;left:0;width:100%;height:100%;";
+        el.parentNode.replaceChild(iframe, el);
+    }
+
+
+
+    
+
+
+</script>
+
+{% endblock extra_js %}
+    
+    
+    

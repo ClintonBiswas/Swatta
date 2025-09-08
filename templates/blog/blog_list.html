@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Blogs{% endblock title %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/blog/blog.css' %}">
+<style>
+    
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="breadcrumb-container">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{% url 'user:home' %}">
+                        <i class="bi bi-house-fill"></i>
+                        <span>Home</span>
+                    </a>
+                </li>
+                <li class="breadcrumb-divider">
+                    <i class="bi bi-chevron-right"></i>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page">Blogs</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+    <!-- main blog section -->
+    <div class="blog-container">
+        <div class="blog-list">
+            {% for blog in blogs %}
+                <article class="blog-card">
+                    <div class="blog-image-container">
+                        <a href="{% url 'blog:blog-details' blog.slug %}" style="text-decoration: none;"><img src="{{blog.blog_pic.url}}" alt="{{blog.title}}" class="blog-image"></a>
+                    </div>
+                    
+                    <div class="blog-meta">
+                        <div class="meta-item">
+                            <svg class="meta-icon" viewBox="0 0 24 24" width="16" height="16">
+                                <path d="M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4z"/>
+                            </svg>
+                            <span>Clinton Biswas</span>
+                        </div>
+                        <div class="meta-item">
+                            <svg class="meta-icon" viewBox="0 0 24 24" width="16" height="16">
+                                <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .89-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V5a2 2 0 0 0-2-2zm0 16H5V8h14v11zM9 10H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z"/>
+                            </svg>
+                            <span>{{ blog.created_at|date:"F j, Y" }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <svg class="meta-icon" viewBox="0 0 24 24" width="16" height="16">
+                                <path d="M21.99 4c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4-.01-18zM18 14H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+                            </svg>
+                            <span>Comments ({{ blog.comments.count }})</span>
+                        </div>
+                        
+                    </div>
+                    
+                    <h2 class="blog-title"><a href="{% url 'blog:blog-details' blog.slug %}">{{blog.title}}</a></h2>
+                    
+                    {% if blog.tags %}
+                    <div class="blog-tags">
+                        {% for tag in blog.tags.all %}
+                            <a href="" class="tag">#{{tag.title}}</a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <a href="{% url 'blog:blog-details' blog.slug %}" class="read-more">Continue Reading →</a>
+                    <!-- <div class="blog-content">
+                        {{blog.blog_details|safe}}
+                    </div>
+                    
+                    <a href="#" class="read-more">Continue Reading →</a> -->
+                </article>
+            {% endfor %}
+        </div>
+        {% include 'blog/blog_sidebar.html' %}
+    </div>
+{% endblock content %}
+
+{% block extra_js %}
+    
+{% endblock extra_js %}
+    
+    

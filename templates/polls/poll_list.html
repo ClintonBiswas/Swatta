@@ -1,0 +1,580 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Polls - Vote Now{% endblock title %}
+
+{% block extra_css %}
+<style>
+/* Main container */
+.poll-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Poll card styling */
+.poll-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    margin-bottom: 30px;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.poll-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.poll-header {
+    padding: 20px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.poll-question {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 5px;
+}
+
+.poll-description {
+    color: #6b7280;
+    font-size: 0.95rem;
+    margin-bottom: 15px;
+}
+
+.poll-votes-count {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-top: 10px;
+    text-align: right;
+}
+
+/* Error message styling */
+.poll-error {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    padding: 10px 15px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    display: none;
+}
+
+/* Poll options styling */
+.poll-options {
+    padding: 15px 20px;
+}
+
+.poll-option {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    margin-bottom: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    transition: all 0.2s;
+    cursor: pointer;
+    background: white;
+}
+
+.poll-option:hover {
+    border-color: #3b82f6;
+    background-color: #f8fafc;
+    transform: translateX(2px);
+}
+
+.poll-option input[type="radio"],
+.poll-option input[type="checkbox"] {
+    margin-right: 12px;
+    width: 18px;
+    height: 18px;
+}
+
+.option-content {
+    flex-grow: 1;
+    width: 100%;
+}
+
+.option-text {
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 8px;
+}
+
+.option-image-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 0;
+    width: 100%;
+}
+
+.option-image {
+    max-height: 200px;
+    max-width: 100%;
+    border-radius: 8px;
+    object-fit: contain;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1/1;
+}
+
+/* Vote button */
+.vote-button {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin-top: 15px;
+    font-size: 1rem;
+}
+
+.vote-button:hover {
+    background-color: #2563eb;
+}
+
+.vote-button:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+}
+
+/* Results section */
+.poll-results {
+    padding: 20px;
+    border-top: 1px solid #f3f4f6;
+    display: none;
+}
+
+.results-title {
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: #111827;
+    font-size: 1.1rem;
+}
+
+.result-item {
+    margin-bottom: 20px;
+}
+
+.result-bar-container {
+    width: 100%;
+    height: 12px;
+    background-color: #e5e7eb;
+    border-radius: 6px;
+    margin-top: 8px;
+    overflow: hidden;
+}
+
+.result-bar {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.5s ease;
+}
+
+.result-text {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 0.9rem;
+    align-items: center;
+}
+
+.result-image {
+    max-height: 50px;
+    max-width: 100%;
+    border-radius: 4px;
+    object-fit: contain;
+}
+
+.total-votes {
+    text-align: center;
+    color: #111827;
+    font-size: 1rem;
+    margin-top: 20px;
+    font-weight: 600;
+    padding: 10px;
+    background-color: #f3f4f6;
+    border-radius: 6px;
+}
+
+.poll-heading {
+    font-size: 28px;
+    margin-bottom: 30px;
+    text-align: center;
+    color: #111827;
+}
+
+.promo-card {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.promo-header h3 {
+    font-size: 1.2rem;
+    color: var(--main-color);
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.promo-code-box {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.promo-code-text {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: #2d3748;
+}
+
+.promo-discount {
+    background: var(--main-color);
+    color: white;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+}
+
+.promo-validity {
+    text-align: center;
+    color: #4a5568;
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+}
+
+.shop-now-button {
+    display: block;
+    text-align: center;
+    background: var(--main-color);
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: background 0.3s;
+}
+
+.success-message {
+    background-color: #d1fae5;
+    color: #065f46;
+    padding: 10px 15px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+}
+
+@media (max-width: 992px) {
+    .poll-container {
+        margin-top: 80px;
+    }
+    .poll-heading {
+        font-size: 22px !important;
+    }
+}
+
+@media (max-width: 640px) {
+    .poll-container {
+        padding: 15px;
+    }
+    
+    .poll-card {
+        border-radius: 10px;
+    }
+    
+    .poll-header,
+    .poll-options,
+    .poll-results {
+        padding: 15px;
+    }
+    
+    .poll-option {
+        padding: 12px;
+    }
+    
+    .option-image {
+        max-height: 150px;
+    }
+}
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="poll-container">
+    <h1 class="font-bold text-center mb-8 poll-heading mt-3">ভোট দিন, জিতে নিন বিশেষ অফার!</h1>
+    
+    {% for poll in polls %}
+    <div class="poll-card" id="poll-{{ poll.id }}">
+        <!-- Error message container -->
+        <div id="poll-error-{{ poll.id }}" class="poll-error"></div>
+        
+        <div class="poll-header">
+            <h2 class="poll-question">{{ poll.question }}</h2>
+            
+            {% if poll.description %}
+            <p class="poll-description">{{ poll.description }}</p>
+            {% endif %}
+            
+            <div class="poll-votes-count">
+                <span id="poll-total-votes-{{ poll.id }}">{{ poll.total_votes }}</span> vote{{ poll.total_votes|pluralize }}
+            </div>
+        </div>
+        
+        <!-- Poll Options -->
+        <div class="poll-options">
+            <form id="poll-form-{{ poll.id }}">
+                {% csrf_token %}
+                <div class="space-y-3">
+                    {% for option in poll.options.all %}
+                    <label class="poll-option">
+                        {% if poll.poll_type == 'multiple' %}
+                        <input type="checkbox" name="option" value="{{ option.id }}" class="form-checkbox">
+                        {% else %}
+                        <input type="radio" name="option" value="{{ option.id }}" class="form-radio">
+                        {% endif %}
+                        
+                        <div class="option-content">
+                            {% if option.image %}
+                            <div class="option-image-container">
+                                <img src="{{ option.image.url }}" alt="{{ option.text }}" class="option-image">
+                            </div>
+                            {% endif %}
+                            {% if option.text %}
+                            <div class="option-text">{{ option.text }}</div>
+                            {% endif %}
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+                
+                <button type="button" onclick="vote({{ poll.id }})" class="vote-button">
+                    Vote Now
+                </button>
+            </form>
+        </div>
+        
+        <!-- Poll Results (Initially Hidden) -->
+        <div id="poll-results-{{ poll.id }}" class="poll-results">
+            <h3 class="results-title">Poll Results</h3>
+            <div id="results-container-{{ poll.id }}"></div>
+            <div class="total-votes">
+                Total votes: <span id="total-votes-{{ poll.id }}">{{ poll.total_votes }}</span>
+            </div>
+        </div>
+        
+        <!-- Promo Code Section (Initially Hidden) -->
+        <div id="promo-code-section-{{ poll.id }}" style="display: none;">
+            <div class="promo-card">
+                <div class="promo-header">
+                    <h3 id="promo-message-{{ poll.id }}">Special Offer for Voters!</h3>
+                </div>
+                <div class="promo-body">
+                    <div class="promo-code-box">
+                        <span id="promo-code-{{ poll.id }}" class="promo-code-text"></span>
+                        <span id="promo-discount-{{ poll.id }}" class="promo-discount"></span>
+                    </div>
+                    <div class="promo-validity">
+                        Valid until: <span id="promo-valid-until-{{ poll.id }}"></span>
+                    </div>
+                    <a id="shop-now-link-{{ poll.id }}" href="#" class="shop-now-button">
+                        Shop Now &rarr;
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    </div>
+    <div class="py-5">
+        <div class="category-header">
+            <h5 class="category-title">Related Products</h5>
+        </div>
+        <div id="main-product-card">
+        {% for product in products %}
+            {% include 'withoutsliderproduct_card.html' %}   
+        {% endfor %}
+        </div>
+    </div>
+
+
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+// Utility function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Show message (error or success)
+function showMessage(pollId, message, isError = true) {
+    const errorEl = document.getElementById(`poll-error-${pollId}`);
+    errorEl.textContent = message;
+    errorEl.style.display = 'block';
+    
+    if (!isError) {
+        errorEl.classList.remove('poll-error');
+        errorEl.classList.add('success-message');
+    } else {
+        errorEl.classList.remove('success-message');
+        errorEl.classList.add('poll-error');
+    }
+    
+    setTimeout(() => {
+        errorEl.style.display = 'none';
+    }, 5000);
+}
+
+// Handle voting
+function vote(pollId) {
+    const form = document.getElementById(`poll-form-${pollId}`);
+    const inputs = form.querySelectorAll('input[name="option"]:checked');
+    const optionIds = Array.from(inputs).map(input => parseInt(input.value));
+    
+    if (optionIds.length === 0) {
+        showMessage(pollId, "Please select at least one option.");
+        return;
+    }
+    
+    // Show loading state
+    const voteButton = form.querySelector('.vote-button');
+    const originalButtonText = voteButton.textContent;
+    voteButton.disabled = true;
+    voteButton.innerHTML = '<span class="spinner"></span> Voting...';
+    
+    fetch("{% url 'ajax_vote' %}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken")
+        },
+        body: JSON.stringify({
+            poll_id: pollId,
+            option_ids: optionIds
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => { 
+                throw new Error(err.error || 'Voting failed. Please try again.'); 
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Hide form and show results
+        form.style.display = 'none';
+        const resultsContainer = document.getElementById(`poll-results-${pollId}`);
+        resultsContainer.style.display = 'block';
+        
+        // Update results
+        updatePollResults(pollId, data.results, data.total_votes);
+        
+        // Update total votes display
+        document.getElementById(`poll-total-votes-${pollId}`).textContent = data.total_votes;
+        document.getElementById(`total-votes-${pollId}`).textContent = data.total_votes;
+        
+        // Handle promo code display
+        const promoContainer = document.getElementById(`promo-code-section-${pollId}`);
+        if (data.promo_code && data.promo_message && data.discount) {
+            // Update all promo elements
+            const promoMessageEl = document.getElementById(`promo-message-${pollId}`);
+            const promoCodeEl = document.getElementById(`promo-code-${pollId}`);
+            const promoDiscountEl = document.getElementById(`promo-discount-${pollId}`);
+            const promoValidEl = document.getElementById(`promo-valid-until-${pollId}`);
+            const shopNowLink = document.getElementById(`shop-now-link-${pollId}`);
+            
+            if (promoMessageEl) promoMessageEl.textContent = data.promo_message;
+            if (promoCodeEl) promoCodeEl.textContent = data.promo_code;
+            if (promoDiscountEl) promoDiscountEl.textContent = data.discount;
+            if (promoValidEl) promoValidEl.textContent = data.valid_until || '';
+            if (shopNowLink && data.shop_now_url) {
+                shopNowLink.href = data.shop_now_url;
+                shopNowLink.style.display = 'block';
+            }
+            
+            promoContainer.style.display = 'block';
+        } else {
+            promoContainer.style.display = 'none';
+        }
+        
+        // Show appropriate message
+        if (data.already_voted) {
+            showMessage(pollId, data.message || 'You have already voted. Here are the current results:');
+        } else if (data.success) {
+            showMessage(pollId, data.message || 'Thank you for voting!', false);
+        }
+    })
+    .catch(error => {
+        showMessage(pollId, error.message);
+    })
+    .finally(() => {
+        // Reset button state
+        voteButton.disabled = false;
+        voteButton.textContent = originalButtonText;
+    });
+}
+
+// Update poll results with colorful bars
+function updatePollResults(pollId, results, totalVotes) {
+    const container = document.getElementById(`results-container-${pollId}`);
+    container.innerHTML = '';
+    
+    if (!results || results.length === 0) {
+        container.innerHTML = '<p>No results available yet.</p>';
+        return;
+    }
+    
+    results.forEach(option => {
+        const optionEl = document.createElement('div');
+        optionEl.className = 'result-item';
+        
+        optionEl.innerHTML = `
+            <div class="flex justify-between items-center">
+                <span class="font-medium">${option.text || ''}</span>
+                <span class="font-semibold">${option.percentage}%</span>
+            </div>
+            <div class="result-bar-container">
+                <div class="result-bar" style="width: ${option.percentage}%; background-color: ${option.color || '#3b82f6'}"></div>
+            </div>
+            <div class="result-text">
+                <span>${option.votes} vote${option.votes !== 1 ? 's' : ''}</span>
+                ${option.image_url ? `<img src="${option.image_url}" alt="${option.text}" class="result-image">` : ''}
+            </div>
+        `;
+        
+        container.appendChild(optionEl);
+    });
+    
+    // Update total votes
+    document.getElementById(`total-votes-${pollId}`).textContent = totalVotes;
+    document.getElementById(`poll-total-votes-${pollId}`).textContent = totalVotes;
+}
+</script>
+{% endblock extra_js %}
