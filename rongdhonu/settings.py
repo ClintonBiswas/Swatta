@@ -27,7 +27,7 @@ INSTALLED_APPS = [
     'compressor',
     'django.contrib.sites',
 ]
-SITE_ID = 2
+SITE_ID = 3
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 
@@ -180,6 +180,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 COMPRESS_ENABLED = True
 COMPRESS_OFFLINE = True
 COMPRESS_ROOT = STATIC_ROOT
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 
 
 LOGIN_URL = '/login/'

@@ -44,9 +44,13 @@ class HomeBanner(models.Model):
 
     def save(self, *args, **kwargs):
         if self.category:
-            domain = Site.objects.get_current().domain
-            path = reverse('product:category-products', args=[self.category.slug])
-            self.link_url = f"http://{domain}{path}"
+            try:
+                domain = Site.objects.get_current().domain
+                path = reverse('product:category-products', args=[self.category.slug])
+                self.link_url = f"https://{domain}{path}"
+            except Site.DoesNotExist:
+                # Fallback to your domain if site not configured
+                self.link_url = f"https://swatta.shop/category-products/{self.category.slug}/"
         super().save(*args, **kwargs)
 
     def __str__(self):

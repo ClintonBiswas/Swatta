@@ -9,11 +9,10 @@ from django.core.paginator import Paginator
 from product.models import Order, ShippingInformation
 from blog.models import MyBlog
 from .utils import get_popular_products
-from django.views.decorators.cache import cache_page
+
 
 # Create your views here.
 
-@cache_page(60 * 15)
 def HomeView(request):
     if request.headers.get('x-requested-with') == 'XMLHttpRequest' and request.method == 'POST':
         email = request.POST.get('subscribe_email')
