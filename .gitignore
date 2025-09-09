@@ -44,4 +44,4 @@ venv.bak/
 
 # Django
 media/
-staticfiles/
+staticfiles/celerybeat-schedule
