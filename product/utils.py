@@ -20,3 +20,6 @@ def get_guest_phone_from_cookie(request):
         return signer.unsign(cookie_value)
     except BadSignature:
         return None
+
+
+

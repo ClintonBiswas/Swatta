@@ -74,9 +74,16 @@
 {% block content %}
 <div class="custom-container py-5">
     <div class="category-header">
-                <h5 class="category-title">{{category.title}} Essentials</h5>
-            </div>
+        <h5 class="category-title">
+    {% if subcategory %}
+        {{ subcategory.title }} Products
+    {% else %}
+        {{ category.title }} Essentials
+    {% endif %}
+</h5>
+    </div>
     <div class="row">
+        {% if category_product %}
         <!-- Left Side Filters -->
         <div class="col-md-2">
             <div class="filter-section mb-4">
@@ -119,12 +126,11 @@
                     </select>
                 </div>
             </div>
-            
-            {% if category_product %}
+
             <div class="mt-3">
                 <div id="main-product-card">
                     {% for product in category_product %}
-                     {% include 'withoutsliderproduct_card.html' %}
+                        {% include 'withoutsliderproduct_card.html' %}
                     {% endfor %}
                 </div>
                 
@@ -141,10 +147,16 @@
                 </div>
                 {% endif %}
             </div>
-            {% endif %}
         </div>
+        {% else %}
+        <!-- If no product available -->
+        <div class="col-12 text-center py-5">
+            <h5 style="font-size: 14px;">No products available in this category.</h5>
+        </div>
+        {% endif %}
     </div>
 </div>
+
 {% endblock content %}
 
 

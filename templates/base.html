@@ -179,6 +179,13 @@
                     <a href="{% url 'product:wishlist-product' %}">Wishlist</a>
                 </div>   
             </li>
+            {% if user.is_authenticated %}
+            <li class="list-group-item">
+                <div class="menu-item">
+                    <a href="{% url 'user:logout' %}">Log Out</a>
+                </div>   
+            </li>
+            {% endif %}
         </ul>
     </div>
 

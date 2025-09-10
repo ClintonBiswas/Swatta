@@ -15,7 +15,7 @@ def send_sms_task(order_id):
         order = Order.objects.get(id=order_id)
         phone = order.shipping_info.phone
         invoice_url = f"{settings.SITE_DOMAIN}{reverse('product:order_confirmation', args=[order.order_id])}"
-        facebook_url = "https://www.facebook.com/letsshop3343"
+        facebook_url = "https://www.facebook.com/swattaa"
 
         if order.status == 'confirmed':
             message = (
@@ -23,7 +23,7 @@ def send_sms_task(order_id):
             f"✅ Your order has been confirmed!\n"
             f"📄 View your invoice: {invoice_url}\n\n"
             f"🙏 Thank you for shopping with us.\n"
-            f"🛍️ Let’s Shop - চলো কিনি"
+            f"🛍️ Swatta - সত্তা "
         )
         elif order.status == 'delivered':
             message = (
@@ -32,7 +32,7 @@ def send_sms_task(order_id):
             f"❤️ We hope you’re happy with your purchase.\n\n"
             f"👍 Stay connected with us on Facebook: {facebook_url}\n\n"
             f"🙏 Thank you for shopping with us.\n"
-            f"🛍️ Let’s Shop - চলো কিনি"
+            f"🛍️ Swatta - সত্তা "
         )
         elif order.status == 'shipped':
             message = (
@@ -41,7 +41,7 @@ def send_sms_task(order_id):
             f"📞 We’ll notify you once it’s delivered.\n"
             f"👍 Stay updated on our Facebook page: {facebook_url}\n\n"
             f"🙏 Thank you for shopping with us.\n"
-            f"🛍️ Let’s Shop - চলো কিনি"
+            f"🛍️ Swatta - সত্তা "
         )
         elif order.status == 'canceled':
             message = (
@@ -50,7 +50,7 @@ def send_sms_task(order_id):
             f"If this was a mistake or you have any questions, please contact us.\n\n"
             f"👍 Stay connected: {facebook_url}\n"
             f"📞 We’re here to help!\n\n"
-            f"🛍️ Let’s Shop - চলো কিনি"
+            f"🛍️ Swatta - সত্তা "
         )
 
         payload = {
@@ -74,7 +74,7 @@ def send_verification_code_task(self, phone, email, verification_code):
             raise ValueError(f"Invalid Bangladeshi phone number: {phone}")
 
         # Prepare messages
-        sms_message = f"Let's Shop: আপনার ভেরিফিকেশন কোড {verification_code}. এটি কারো সাথে শেয়ার করবেন না।"
+        sms_message = f"Swatta - সত্তা: আপনার কোড {verification_code}। নিরাপত্তার জন্য এটি কারও সাথে শেয়ার করবেন না।"
         email_message = f"Your Let's Shop verification code is: {verification_code}\n\nDo not share this code with anyone."
 
         # Try SMS first

@@ -1668,7 +1668,7 @@ body{
 }
 
 .footer-copyright .copyright-text {
-    text-align: start; /* Align text to the start */
+    text-align: start;
     font-size: 16px;
 }
 
@@ -1791,6 +1791,9 @@ body{
     }
     .footer-copyright{
         grid-template-columns: 1fr;
+    }
+    .copyright-text{
+        font-size: 12px !important;
     }
     .custom-card-title{
         font-size: 14px;

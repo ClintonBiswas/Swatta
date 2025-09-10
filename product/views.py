@@ -8,18 +8,18 @@ from django.contrib import messages
 from django.db.models import Q
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal
 from django.db import transaction
 from django.db.models import F, DecimalField, ExpressionWrapper, Avg, Count
 from django.urls import reverse
 from django.contrib.auth.decorators import user_passes_test
 from django.core.paginator import Paginator
-from django.db.models import Sum, Count, Avg, Case, When, IntegerField
+from django.db.models import Sum, Count, Avg
 from datetime import datetime
 from .tasks import send_verification_code_task
 from urllib.parse import urlparse, parse_qs
 from django.core.validators import validate_email
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError 
 from django.core.signing import Signer
 from django.conf import settings
 from .utils import normalize_phone, get_guest_phone_from_cookie
