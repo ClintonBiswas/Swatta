@@ -408,29 +408,34 @@ function updateCartCount(newCount) {
 }
 
     
-            // Update checkout button to ensure quantities are saved
-            document.querySelector(".cart-subtotal-button")?.addEventListener("click", async function(event) {
-                event.preventDefault();
-                const button = this;
-                button.disabled = true;
-                
-                try {
-                    // Save all quantities before navigating
-                    const updates = Array.from(document.querySelectorAll(".card")).map(async (card) => {
-                        const itemId = card.dataset.itemId;
-                        const quantity = parseInt(card.querySelector(".cart-quantity").value) || 1;
-                        return updateCartItemQuantity(itemId, quantity);
-                    });
-                    
-                    await Promise.all(updates);
-                    window.location.href = "/checkout/";
-                } catch (error) {
-                    console.error("Error updating quantities:", error);
-                    alert("Failed to update quantities. Please try again.");
-                    button.disabled = false;
-                    button.innerHTML = '<a href="/checkout/">Go to checkout</a>';
-                }
-            });
+// Update checkout button to ensure quantities are saved
+    document.querySelector(".cart-subtotal-button")?.addEventListener("click", async function(event) {
+    event.preventDefault();
+    const button = this;
+    button.disabled = true;
+
+    try {
+        // Only update items inside the sidebar cart list
+        const updates = Array.from(cartItemList.querySelectorAll(".card")).map(async (card) => {
+            const itemId = card.dataset.itemId;
+            const qtyInput = card.querySelector(".cart-quantity");
+            const quantity = parseInt(qtyInput?.value) || 1;
+
+            if (itemId) {
+                return updateCartItemQuantity(itemId, quantity);
+            }
+        });
+
+        await Promise.all(updates);
+        window.location.href = "/checkout/";
+    } catch (error) {
+        console.error("Error updating quantities:", error);
+        alert("Failed to update quantities. Please try again.");
+        button.disabled = false;
+        button.innerHTML = '<a href="/checkout/">Go to checkout</a>';
+    }
+});
+
         }
     
         // Function to fetch cart data (keep your existing implementation)
@@ -949,7 +954,7 @@ function updateCartCount(newCount) {
     // Make it available globally
     window.showToast = showToast;
 
-// Mobile Search Window Implementation
+// Search functionality for both mobile and desktop
 document.addEventListener("DOMContentLoaded", () => {
     // Mobile search elements
     const openSearchBtn = document.getElementById("open-search-window");
@@ -961,117 +966,168 @@ document.addEventListener("DOMContentLoaded", () => {
     const mobileSearchInput = document.getElementById("mobile-search-input");
     const mobileSearchSuggestions = document.getElementById("mobile-search-suggestions");
     const mobileSearchForm = document.getElementById("mobile-search-form");
+    
+    // Desktop search elements
+    const desktopSearchInput = document.getElementById('desktop-search-input');
+    const desktopSearchSuggestions = document.getElementById('desktop-search-suggestions');
+    const desktopSearchContainer = document.querySelector('.search-container');
+    const desktopSearchForm = document.querySelector('.search form'); // Select the desktop search form
+    
     let debounceTimer;
 
-    // Open/close search window
+    // Open/close search window for mobile
     const openSearchWindow = () => {
-        searchWindow.classList.add("active");
-        overlay.classList.add("active");
-        bottomHeader.style.display = "none";
-        mobileSearchInput.focus();
+        if (searchWindow) searchWindow.classList.add("active");
+        if (overlay) overlay.classList.add("active");
+        if (bottomHeader) bottomHeader.style.display = "none";
+        if (mobileSearchInput) mobileSearchInput.focus();
     };
 
     const closeSearchWindow = () => {
-        searchWindow.classList.remove("active");
-        overlay.classList.remove("active");
-        bottomHeader.style.display = "flex";
-        mobileSearchSuggestions.style.display = "none";
+        if (searchWindow) searchWindow.classList.remove("active");
+        if (overlay) overlay.classList.remove("active");
+        if (bottomHeader) bottomHeader.style.display = "flex";
+        if (mobileSearchSuggestions) mobileSearchSuggestions.style.display = "none";
     };
 
-    // Event listeners for opening/closing
-    if (openSearchBtn) openSearchBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        openSearchWindow();
-    });
+    // Event listeners for opening/closing mobile search
+    if (openSearchBtn) {
+        openSearchBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            openSearchWindow();
+        });
+    }
 
-    if (bottomSearchBtn) bottomSearchBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        openSearchWindow();
-    });
+    if (bottomSearchBtn) {
+        bottomSearchBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            openSearchWindow();
+        });
+    }
 
     if (closeSearchBtn) closeSearchBtn.addEventListener("click", closeSearchWindow);
     if (overlay) overlay.addEventListener("click", closeSearchWindow);
 
-    // Auto-suggest functionality for mobile
-    if (mobileSearchInput) {
-        mobileSearchInput.addEventListener('input', function(e) {
+    // Auto-suggest functionality for both mobile and desktop
+    const handleSearchInput = (inputElement, suggestionsElement) => {
+        if (!inputElement) return;
+        
+        inputElement.addEventListener('input', function(e) {
             clearTimeout(debounceTimer);
             const query = e.target.value.trim();
             
             if (query.length < 2) {
-                mobileSearchSuggestions.innerHTML = '';
-                mobileSearchSuggestions.style.display = 'none';
+                if (suggestionsElement) {
+                    suggestionsElement.innerHTML = '';
+                    suggestionsElement.style.display = 'none';
+                }
                 return;
             }
             
             debounceTimer = setTimeout(() => {
-                fetchSearchResults(query, mobileSearchSuggestions);
+                fetchSearchResults(query, suggestionsElement);
             }, 300);
         });
-    }
+    };
 
-    // Form submission for mobile
-    if (mobileSearchForm) {
-        mobileSearchForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const query = mobileSearchInput.value.trim();
-            if (query) {
-                const firstSuggestion = mobileSearchSuggestions.querySelector('.suggestion-item');
+    // Handle search form submission
+    const handleSearchSubmit = (formElement, inputElement, suggestionsElement) => {
+        if (!formElement || !inputElement) return;
+        
+        formElement.addEventListener('submit', function(e) {
+            const query = inputElement.value.trim();
+            if (!query) {
+                e.preventDefault();
+                return;
+            }
+            
+            // Check if there are any suggestions visible
+            if (suggestionsElement && suggestionsElement.style.display === 'block') {
+                const firstSuggestion = suggestionsElement.querySelector('.suggestion-item:not(.no-results):not(.loading)');
                 if (firstSuggestion) {
+                    e.preventDefault();
                     window.location.href = firstSuggestion.href;
-                } else {
-                    // Fallback to regular search if no suggestions
-                    window.location.href = `/search-results/?q=${encodeURIComponent(query)}`;
+                    return;
+                }
+            }
+            
+            // If no suggestions found, let the form submit naturally (which goes to /search-results/?q=query)
+            // The form already has action="/search-results/" and method="GET"
+        });
+    };
+
+    // Handle Enter key in search input
+    const handleEnterKey = (inputElement, suggestionsElement) => {
+        if (!inputElement) return;
+        
+        inputElement.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                // For desktop, we don't need to prevent default if the form will handle it
+                const query = inputElement.value.trim();
+                if (query) {
+                    // Check if there are any suggestions visible
+                    if (suggestionsElement && suggestionsElement.style.display === 'block') {
+                        const firstSuggestion = suggestionsElement.querySelector('.suggestion-item:not(.no-results):not(.loading)');
+                        if (firstSuggestion) {
+                            e.preventDefault();
+                            window.location.href = firstSuggestion.href;
+                            return;
+                        }
+                    }
+                    // If no suggestions, let the form submit naturally
                 }
             }
         });
+    };
+
+    // Initialize mobile search
+    handleSearchInput(mobileSearchInput, mobileSearchSuggestions);
+    handleSearchSubmit(mobileSearchForm, mobileSearchInput, mobileSearchSuggestions);
+    handleEnterKey(mobileSearchInput, mobileSearchSuggestions);
+
+    // Initialize desktop search
+    handleSearchInput(desktopSearchInput, desktopSearchSuggestions);
+    
+    // Handle desktop search form
+    if (desktopSearchForm && desktopSearchInput) {
+        handleSearchSubmit(desktopSearchForm, desktopSearchInput, desktopSearchSuggestions);
+        handleEnterKey(desktopSearchInput, desktopSearchSuggestions);
     }
-});
 
-// Main Search Implementation
-document.addEventListener('DOMContentLoaded', function() {
-    const desktopSearchInput = document.getElementById('desktop-search-input');
-    const desktopSearchSuggestions = document.getElementById('desktop-search-suggestions');
-    const desktopSearchContainer = document.querySelector('.search-container');
-    let debounceTimer;
-
-    if (desktopSearchInput) {
-        desktopSearchInput.addEventListener('input', function(e) {
-            clearTimeout(debounceTimer);
-            const query = e.target.value.trim();
-            
-            if (query.length < 2) {
-                desktopSearchSuggestions.innerHTML = '';
+    // Handle click outside to close suggestions (desktop)
+    if (desktopSearchContainer) {
+        document.addEventListener('click', function(e) {
+            if (desktopSearchSuggestions && !desktopSearchContainer.contains(e.target)) {
                 desktopSearchSuggestions.style.display = 'none';
-                return;
             }
-            
-            debounceTimer = setTimeout(() => {
-                fetchSearchResults(query, desktopSearchSuggestions);
-            }, 300);
         });
     }
-
-    // Handle click outside to close suggestions
-    document.addEventListener('click', function(e) {
-        if (desktopSearchContainer && !desktopSearchContainer.contains(e.target)) {
-            desktopSearchSuggestions.style.display = 'none';
-        }
-    });
 });
 
 // Shared Functions
 function fetchSearchResults(query, suggestionsElement) {
+    if (!suggestionsElement) return;
+    
+    // Show loading state
+    suggestionsElement.innerHTML = '<div class="suggestion-item loading">Searching...</div>';
+    suggestionsElement.style.display = 'block';
+    
     fetch(`/search/?q=${encodeURIComponent(query)}`, {
+        method: 'GET',
         headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
         }
     })
     .then(response => {
-        if (!response.ok) throw new Error('Network response was not ok');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         return response.json();
     })
-    .then(data => displaySuggestions(data, suggestionsElement))
+    .then(data => {
+        displaySuggestions(data, suggestionsElement);
+    })
     .catch(error => {
         console.error('Fetch error:', error);
         suggestionsElement.innerHTML = '<div class="suggestion-item no-results">Error loading results</div>';
@@ -1080,6 +1136,8 @@ function fetchSearchResults(query, suggestionsElement) {
 }
 
 function displaySuggestions(results, suggestionsElement) {
+    if (!suggestionsElement) return;
+    
     if (!results || results.length === 0) {
         suggestionsElement.innerHTML = '<div class="suggestion-item no-results">No results found</div>';
         suggestionsElement.style.display = 'block';
@@ -1088,25 +1146,24 @@ function displaySuggestions(results, suggestionsElement) {
 
     let html = '';
     results.forEach(item => {
-        let url = '#';
+        let url = item.url || '#';
         let icon = 'bi-question-circle';
         let type = '';
         
         if (item.model === 'ourproduct') {
-            url = `/product-details/${item.slug}/`;
             icon = 'bi-box-seam';
             type = 'Product';
         } else if (item.model === 'productbrand') {
-            url = `/brand-products/${item.slug}/`;
             icon = 'bi-tags';
             type = 'Brand';
         } else if (item.model === 'featurecategory') {
-            url = `/category-products/${item.slug}/`;
             icon = 'bi-list-ul';
             type = 'Category';
         } else if (item.model === 'productsubcategory') {
-            url = `/sub-category-products/${item.slug}/`;
             icon = 'bi-list-ul';
+            type = 'Sub-Category';
+        } else if (item.model === 'productmoresubcategory') {
+            icon = 'bi-list-nested';
             type = 'Sub-Category';
         }
 
@@ -1134,7 +1191,6 @@ function displaySuggestions(results, suggestionsElement) {
     suggestionsElement.style.display = 'block';
 }
 //end
-
 //email subscribe
 document.getElementById('subscribeForm').addEventListener('submit', function (e) {
     e.preventDefault();

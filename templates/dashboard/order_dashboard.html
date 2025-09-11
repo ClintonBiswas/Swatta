@@ -163,10 +163,22 @@
                 <option value="canceled">Canceled</option>
             </select>
         </div>
+
+        <!-- ✅ New Verified Filter -->
+        <div class="filter-group">
+            <label for="verified-filter">Verified:</label>
+            <select id="verified-filter" class="form-select">
+                <option value="all">All Orders</option>
+                <option value="true">Verified Only</option>
+                <option value="false">Unverified Only</option>
+            </select>
+        </div>
+
         <div class="filter-group">
             <label for="search-input">Search:</label>
             <input type="text" id="search-input" class="form-control" placeholder="Order ID, Name, Phone or Email">
         </div>
+
         <div class="filter-group">
             <label for="search-input">Schedule a message</label>
             <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#scheduleMessageModal">
@@ -174,8 +186,9 @@
             </button>
         </div>
     </div>
-    <!-- schedule modal will be here -->
-     {% include 'dashboard/schedule_messagemodal.html' %}
+
+    <!-- schedule modal -->
+    {% include 'dashboard/schedule_messagemodal.html' %}
 
     <div class="table-responsive">
         <table class="order-table">
@@ -195,7 +208,6 @@
                     <th>Discount</th>
                     <th>Delivery</th>
                     <th>Total</th>
-                    
                 </tr>
             </thead>
             <tbody id="orders-container">
@@ -208,226 +220,238 @@
         <button id="load-more" class="btn btn-primary">Load More Orders</button>
     </div>
 </div>
+
 {% endblock %}
 
 {% block extra_js %}
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            let page = 1;
-            let isLoading = false;
-            let currentStatus = 'all';
-            let searchQuery = '';
-            let dateFrom = '';
-            let dateTo = '';
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let page = 1;
+        let isLoading = false;
+        let currentStatus = 'all';
+        let currentVerified = 'all';  // ✅ new verified filter
+        let searchQuery = '';
+        let dateFrom = '';
+        let dateTo = '';
 
-            const ordersContainer = document.getElementById('orders-container');
-            const loadMoreBtn = document.getElementById('load-more');
-            const statusFilter = document.getElementById('status-filter');
-            const searchInput = document.getElementById('search-input');
-            const dateFromInput = document.getElementById('date-from');
-            const dateToInput = document.getElementById('date-to');
+        const ordersContainer = document.getElementById('orders-container');
+        const loadMoreBtn = document.getElementById('load-more');
+        const statusFilter = document.getElementById('status-filter');
+        const verifiedFilter = document.getElementById('verified-filter'); // ✅ select element
+        const searchInput = document.getElementById('search-input');
+        const dateFromInput = document.getElementById('date-from');
+        const dateToInput = document.getElementById('date-to');
 
-            // Initial load
+        // Initial load
+        loadOrders();
+
+        // Load more orders when button clicked
+        loadMoreBtn.addEventListener('click', loadOrders);
+
+        // Filter by status
+        statusFilter.addEventListener('change', function() {
+            currentStatus = this.value;
+            resetAndLoadOrders();
+        });
+
+        // ✅ Filter by verified
+        verifiedFilter.addEventListener('change', function() {
+            currentVerified = this.value;
+            resetAndLoadOrders();
+        });
+
+        // Search functionality
+        searchInput.addEventListener('input', debounce(function() {
+            searchQuery = this.value.trim();
+            resetAndLoadOrders();
+        }, 300));
+
+        // Date filter functionality
+        dateFromInput.addEventListener('change', function() {
+            dateFrom = this.value;
+            resetAndLoadOrders();
+        });
+
+        dateToInput.addEventListener('change', function() {
+            dateTo = this.value;
+            resetAndLoadOrders();
+        });
+
+        function resetAndLoadOrders() {
+            ordersContainer.innerHTML = '';
+            page = 1;
+            loadMoreBtn.style.display = 'block';
             loadOrders();
+        }
 
-            // Load more orders when button clicked
-            loadMoreBtn.addEventListener('click', loadOrders);
+        function loadOrders() {
+            if (isLoading) return;
+            
+            isLoading = true;
+            loadMoreBtn.disabled = true;
+            loadMoreBtn.textContent = 'Loading...';
 
-            // Filter by status
-            statusFilter.addEventListener('change', function() {
-                currentStatus = this.value;
-                resetAndLoadOrders();
-            });
-
-            // Search functionality
-            searchInput.addEventListener('input', debounce(function() {
-                searchQuery = this.value.trim();
-                resetAndLoadOrders();
-            }, 300));
-
-            // Date filter functionality
-            dateFromInput.addEventListener('change', function() {
-                dateFrom = this.value;
-                resetAndLoadOrders();
-            });
-
-            dateToInput.addEventListener('change', function() {
-                dateTo = this.value;
-                resetAndLoadOrders();
-            });
-
-            function resetAndLoadOrders() {
-                ordersContainer.innerHTML = '';
-                page = 1;
-                loadMoreBtn.style.display = 'block';
-                loadOrders();
+            const url = new URL(window.location.href);
+            url.searchParams.set('page', page);
+            
+            if (currentStatus !== 'all') {
+                url.searchParams.set('status', currentStatus);
+            }
+            if (currentVerified !== 'all') { // ✅ add verified filter
+                url.searchParams.set('verified', currentVerified);
+            }
+            if (searchQuery) {
+                url.searchParams.set('search', searchQuery);
+            }
+            if (dateFrom) {
+                url.searchParams.set('date_from', dateFrom);
+            }
+            if (dateTo) {
+                url.searchParams.set('date_to', dateTo);
             }
 
-            function loadOrders() {
-                if (isLoading) return;
-                
-                isLoading = true;
-                loadMoreBtn.disabled = true;
-                loadMoreBtn.textContent = 'Loading...';
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.orders.length > 0) {
+                    data.orders.forEach((order, index) => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${index + 1}</td>
+                            <td><a href="${order.order_url}" class="order-id-link change-color" target="_blank">#${order.order_id}</a></td>
+                            <td>${order.created_at}</td>
+                            <td>${order.customer_name}</td>
+                            <td><a href="tel:${order.customer_phone}" class="phone-link change-color">${order.customer_phone}</a></td>
+                            <td>${order.customer_email}</td>
+                            <td>${order.customer_address}</td>
+                            <td>
+                                <select class="status-select" data-order-id="${order.id}" data-previous-value="${order.status}">
+                                    ${order.status_options.map(option => 
+                                        `<option value="${option}" ${option === order.status ? 'selected' : ''}>
+                                            ${option.charAt(0).toUpperCase() + option.slice(1)}
+                                        </option>`
+                                    ).join('')}
+                                </select>
+                            </td>
+                            <td>${order.products_list.slice(0,40)}...</td>
+                            <td>${order.total_quantity}</td>
+                            <td>৳${order.total_price.toFixed(2)}</td>
+                            <td>
+                                <span class="discount-badge ${order.has_discount ? 'has-discount' : 'no-discount'}">
+                                    ${order.has_discount ? '৳' + order.discount_amount.toFixed(2) + (order.promo_code_used ? ' (' + order.promo_code_used + ')' : '') : 'None'}
+                                </span>
+                            </td>
+                            <td>৳${order.delivery_cost.toFixed(2)}</td>
+                            <td>৳${order.grand_total.toFixed(2)}</td>
+                        `;
+                        ordersContainer.appendChild(row);
+                    });
 
-                const url = new URL(window.location.href);
-                url.searchParams.set('page', page);
-                
-                if (currentStatus !== 'all') {
-                    url.searchParams.set('status', currentStatus);
-                }
-                if (searchQuery) {
-                    url.searchParams.set('search', searchQuery);
-                }
-                if (dateFrom) {
-                    url.searchParams.set('date_from', dateFrom);
-                }
-                if (dateTo) {
-                    url.searchParams.set('date_to', dateTo);
-                }
-
-                fetch(url, {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.orders.length > 0) {
-                        data.orders.forEach((order, index) => {
-                            const row = document.createElement('tr');
-                            row.innerHTML = `
-                                <td>${index + 1}</td>
-                                <td><a href="${order.order_url}" class="order-id-link change-color" target="_blank">#${order.order_id}</a></td>
-                                <td>${order.created_at}</td>
-                                <td>${order.customer_name}</td>
-                                <td><a href="tel:${order.customer_phone}" class="phone-link change-color">${order.customer_phone}</a></td>
-                                <td>${order.customer_email}</td>
-                                <td>${order.customer_address}</td>
-                                <td>
-                                    <select class="status-select" data-order-id="${order.id}" data-previous-value="${order.status}">
-                                        ${order.status_options.map(option => 
-                                            `<option value="${option}" ${option === order.status ? 'selected' : ''}>
-                                                ${option.charAt(0).toUpperCase() + option.slice(1)}
-                                            </option>`
-                                        ).join('')}
-                                    </select>
-                                </td>
-                                <td>${order.products_list.slice(0,40)}...</td>
-                                <td>${order.total_quantity}</td>
-                                <td>৳${order.total_price.toFixed(2)}</td>
-                                <td>
-                                    <span class="discount-badge ${order.has_discount ? 'has-discount' : 'no-discount'}">
-                                        ${order.has_discount ? '৳' + order.discount_amount.toFixed(2) + (order.promo_code_used ? ' (' + order.promo_code_used + ')' : '') : 'None'}
-                                    </span>
-                                </td>
-                                <td>৳${order.delivery_cost.toFixed(2)}</td>
-                                <td>৳${order.grand_total.toFixed(2)}</td>
-                                
-                            `;
-                            ordersContainer.appendChild(row);
-                        });
                     ordersContainer.addEventListener('click', function (e) {
                         if (e.target.classList.contains('change-color')) {
-
                             e.target.style.color = "red";
                             e.target.style.fontWeight = "bold";
                         }
                     });
 
+                    // Add event listeners to new status selects
+                    document.querySelectorAll('.status-select').forEach(select => {
+                        select.addEventListener('change', updateOrderStatus);
+                    });
 
-                        // Add event listeners to new status selects
-                        document.querySelectorAll('.status-select').forEach(select => {
-                            select.addEventListener('change', updateOrderStatus);
-                        });
-
-                        page++;
-                        loadMoreBtn.disabled = !data.has_next;
-                    } else {
-                        if (page === 1) {
-                            ordersContainer.innerHTML = '<tr><td colspan="11" class="text-center">No orders found</td></tr>';
-                        }
-                        loadMoreBtn.style.display = 'none';
+                    page++;
+                    loadMoreBtn.disabled = !data.has_next;
+                } else {
+                    if (page === 1) {
+                        ordersContainer.innerHTML = '<tr><td colspan="14" class="text-center">No orders found</td></tr>';
                     }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                })
-                .finally(() => {
-                    isLoading = false;
-                    loadMoreBtn.textContent = 'Load More Orders';
-                });
-            }
+                    loadMoreBtn.style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            })
+            .finally(() => {
+                isLoading = false;
+                loadMoreBtn.textContent = 'Load More Orders';
+            });
+        }
 
-            function updateOrderStatus(event) {
-                const orderId = event.target.dataset.orderId;
-                const newStatus = event.target.value;
-                const previousValue = event.target.dataset.previousValue;
+        function updateOrderStatus(event) {
+            const orderId = event.target.dataset.orderId;
+            const newStatus = event.target.value;
+            const previousValue = event.target.dataset.previousValue;
 
-                fetch(`/update-order-status/${orderId}/`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken'),
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: JSON.stringify({
-                        'status': newStatus
-                    })
+            fetch(`/update-order-status/${orderId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    'status': newStatus
                 })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(err => { throw new Error(err.error || 'Failed to update status'); });
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.success) {
-                        showToast('Order status updated successfully!', 'success');
-                        event.target.dataset.previousValue = newStatus;
-                    } else {
-                        throw new Error(data.error || 'Failed to update status');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showToast(error.message || 'Error updating order status', 'error');
-                    event.target.value = previousValue;
-                });
-            }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.error || 'Failed to update status'); });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    showToast('Order status updated successfully!', 'success');
+                    event.target.dataset.previousValue = newStatus;
+                } else {
+                    throw new Error(data.error || 'Failed to update status');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast(error.message || 'Error updating order status', 'error');
+                event.target.value = previousValue;
+            });
+        }
 
-            // Helper function to get CSRF token
-            function getCookie(name) {
-                let cookieValue = null;
-                if (document.cookie && document.cookie !== '') {
-                    const cookies = document.cookie.split(';');
-                    for (let i = 0; i < cookies.length; i++) {
-                        const cookie = cookies[i].trim();
-                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                            break;
-                        }
+        // Helper function to get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
                     }
                 }
-                return cookieValue;
             }
+            return cookieValue;
+        }
 
-            // Debounce function to limit how often a function is called
-            function debounce(func, wait) {
-                let timeout;
-                return function() {
-                    const context = this, args = arguments;
-                    clearTimeout(timeout);
-                    timeout = setTimeout(() => {
-                        func.apply(context, args);
-                    }, wait);
-                };
-            }
+        // Debounce function to limit how often a function is called
+        function debounce(func, wait) {
+            let timeout;
+            return function() {
+                const context = this, args = arguments;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    func.apply(context, args);
+                }, wait);
+            };
+        }
 
-        });
-document.getElementById("send_to_all").addEventListener("change", function() {
-    const phoneField = document.getElementById("phoneNumbersField");
-    phoneField.style.display = this.checked ? "none" : "block";
-});
-    </script>
+    });
+
+    document.getElementById("send_to_all").addEventListener("change", function() {
+        const phoneField = document.getElementById("phoneNumbersField");
+        phoneField.style.display = this.checked ? "none" : "block";
+    });
+</script>
+
 {% endblock extra_js %}

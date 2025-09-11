@@ -72,7 +72,11 @@ class Vote(models.Model):
             models.Index(fields=['poll', 'session_key']),
             models.Index(fields=['poll', 'ip_address']),
         ]
-        unique_together = [['poll', 'user'], ['poll', 'session_key'], ['poll', 'ip_address']]
+        unique_together = [
+            ['poll', 'option', 'user'],
+            ['poll', 'option', 'session_key'],
+        ]
+
 
 class PollView(models.Model):
     poll = models.ForeignKey(Poll, on_delete=models.CASCADE)

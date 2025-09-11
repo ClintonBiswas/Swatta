@@ -49,10 +49,9 @@
             </div>
             <!-- Desktop Search -->
             <div class="search">
-                <form action="" method="POST">
-                    {% csrf_token %}
+                <form action="/search-results/" method="GET"> 
                     <div class="search-container">
-                        <input required class="search-input" type="text" placeholder="" id="desktop-search-input" autocomplete="off">
+                        <input required class="search-input" type="text" placeholder="Search..." name="q" id="desktop-search-input" autocomplete="off">
                         <button class="i-button" type="submit"><i class="bi bi-search" aria-hidden="true"></i></button>
                         <div class="search-suggestions" id="desktop-search-suggestions"></div>
                     </div>
@@ -174,11 +173,6 @@
                     <a href="{% url 'product:category-products' 'food' %}">Food</a>
                 </div>   
             </li>
-            <li class="list-group-item">
-                <div class="menu-item">
-                    <a href="{% url 'product:wishlist-product' %}">Wishlist</a>
-                </div>   
-            </li>
             {% if user.is_authenticated %}
             <li class="list-group-item">
                 <div class="menu-item">
@@ -230,14 +224,13 @@
         <p>Search Products</p>
     </div>
     <div class="search-window-header">
-        <form action="" method="GET" id="mobile-search-form">
-            {% csrf_token %}
-            <input type="text" placeholder="Search..." class="search-input" id="mobile-search-input" autocomplete="off"/>
+        <form action="/search-results/" method="GET" id="mobile-search-form"> 
+            <input type="text" placeholder="Search..." name="q" class="search-input" id="mobile-search-input" autocomplete="off"/>
             <button type="submit" class="search-window-button"><i class="bi bi-search"></i></button>
         </form>
         <div class="search-suggestions" id="mobile-search-suggestions"></div>
     </div>
-</div>       
+</div>      
        <!-- end search window -->  
 
     <!-- blur overlay -->

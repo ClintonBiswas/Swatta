@@ -4,12 +4,12 @@ app_name = 'product'
 
 urlpatterns = [
     path('product-details/<slug:product_slug>/', views.ProductDetails, name='product-details'),
-   # path('get-variant-by-color/', views.get_variant_by_color, name='get_variant_by_color'),
     path("category-products/<slug:slug>/",views.CategoryProducts, name='category-products'),
-    # path("sub-category-products/<slug:slug>/",views.SubCategoryProducts, name='sub-category-products'),
-    # path("brand-products/<slug:slug>/",views.BrandProducts, name='brand-products'),
+    path('brand-products/<slug:brand_slug>/', views.brand_products_view, name='brand-products'),
+    path('subcategory-products/<slug:subcategory_slug>/', views.subcategory_products_view, name='subcategory-products'),
     path('api/track-product-view/<slug:product_slug>/', views.track_product_view, name='track_product_view'),
     path('search/', views.search_view, name='search'),
+    path("search-results/", views.search_results_view, name="search_results"),
     path('cart/', views.CartView, name='cart-view'),
     path("get-cart-count/", views.get_cart_count, name="get-cart-count"),
     path("add-to-cart/", views.add_to_cart, name="add-to-cart"),

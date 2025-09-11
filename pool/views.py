@@ -34,7 +34,7 @@ def ajax_vote(request):
         data = json.loads(request.body.decode('utf-8'))
         poll_id = data.get('poll_id')
         option_ids = data.get('option_ids')
-        
+
         if not poll_id or not option_ids:
             return JsonResponse({'error': 'Invalid request data'}, status=400)
 
@@ -45,10 +45,10 @@ def ajax_vote(request):
 
         poll = get_object_or_404(Poll, id=poll_id, is_active=True)
 
-        # Active promo code
+        # --- Active promo code ---
         promo_code = PromoCode.objects.filter(
-            is_active=True, 
-            valid_from__lte=timezone.now(), 
+            is_active=True,
+            valid_from__lte=timezone.now(),
             valid_to__gte=timezone.now()
         ).first()
 
@@ -62,40 +62,10 @@ def ajax_vote(request):
                 'shop_now_url': reverse('user:home')
             }
 
-        # Check if already voted
-        existing_vote = Vote.objects.filter(
-            Q(poll=poll, session_key=session_key) |
-            Q(poll=poll, ip_address=ip_address) |
-            (Q(poll=poll, user=request.user) if request.user.is_authenticated else Q(pk=None))
-        ).exists()
-
-        if existing_vote:
-            poll.update_total_votes()  # ensure it's fresh
-            poll.refresh_from_db()
-
-            options = poll.options.all()
-            result_data = []
-            for idx, option in enumerate(options):
-                result_data.append({
-                    'id': option.id,
-                    'text': option.text,
-                    'image_url': option.image.url if option.image else None,
-                    'votes': option.vote_count,
-                    'percentage': option.percentage,
-                    'color': get_color_for_option(idx)  # fixed color assignment
-                })
-
-            return JsonResponse({
-                'already_voted': True,
-                'message': 'You have already voted on this poll. Here are the current results:',
-                'results': result_data,
-                'total_votes': poll.total_votes,
-                **promo_data
-            })
-
-        # Validate options
+        # --- Normalize option_ids ---
         if not isinstance(option_ids, list):
             option_ids = [option_ids]
+
         if poll.poll_type == Poll.SINGLE and len(option_ids) > 1:
             return JsonResponse({'error': 'This poll only allows single choice'}, status=400)
 
@@ -103,7 +73,16 @@ def ajax_vote(request):
         if not all(option_id in valid_options for option_id in option_ids):
             return JsonResponse({'error': 'Invalid option selected'}, status=400)
 
-        # Create votes
+        # --- Remove old votes (re-voting allowed) ---
+        filter_kwargs = {'poll': poll}
+        if request.user.is_authenticated:
+            filter_kwargs['user'] = request.user
+        else:
+            filter_kwargs['session_key'] = session_key
+
+        Vote.objects.filter(**filter_kwargs).delete()
+
+        # --- Save new votes ---
         for option_id in option_ids:
             option = PollOption.objects.get(id=option_id, poll=poll)
             Vote.objects.create(
@@ -117,24 +96,24 @@ def ajax_vote(request):
         poll.update_total_votes()
         poll.refresh_from_db()
 
-        options = poll.options.all()
+        # --- Prepare results ---
         result_data = []
-        for idx, option in enumerate(options):
+        for idx, option in enumerate(poll.options.all()):
             result_data.append({
                 'id': option.id,
                 'text': option.text,
                 'image_url': option.image.url if option.image else None,
                 'votes': option.vote_count,
                 'percentage': option.percentage,
-                'color': get_color_for_option(idx)
+                'color': get_color_for_option(idx),
             })
 
         return JsonResponse({
             'success': True,
-            'message': 'Vote recorded successfully!',
+            'message': 'Your vote has been recorded!',
             'results': result_data,
             'total_votes': poll.total_votes,
-            **promo_data
+            **promo_data 
         })
 
     except json.JSONDecodeError:
@@ -143,6 +122,8 @@ def ajax_vote(request):
         return JsonResponse({'error': 'Invalid option selected'}, status=400)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
 
 def get_client_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')

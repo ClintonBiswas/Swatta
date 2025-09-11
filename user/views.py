@@ -50,7 +50,7 @@ def HomeView(request):
     return render(request, 'user/home.html', context)
 
 def MostViewProduct(request):
-    popular_products = get_popular_products(limit=10)
+    popular_products = get_popular_products(limit=20)
     return render(request, 'user/most_view_product.html', context={'popular_products':popular_products})
 
 def products_by_subcategory(request, category_slug, subcategory_slug):
@@ -175,7 +175,7 @@ def user_profile(request):
         user_info = CustomUser.objects.get(email=user.email)
         customer_info = ShippingInformation.objects.filter(user=user).last()
         # Get all orders for the user with their items
-        orders = Order.objects.filter(user=user)\
+        orders = Order.objects.filter(user=user, is_verified = True)\
                       .order_by('-created_at')\
                       .prefetch_related('order_items__product')
         

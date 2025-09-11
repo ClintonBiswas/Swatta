@@ -6,7 +6,7 @@ from .forms import ProductReviewForm, ShippingInformationForm, ContactWithUsForm
 import json, random, time, re, logging, traceback
 from django.contrib import messages
 from django.db.models import Q
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
 from django.contrib.auth.decorators import login_required
 from decimal import Decimal
 from django.db import transaction
@@ -23,6 +23,8 @@ from django.core.exceptions import ValidationError
 from django.core.signing import Signer
 from django.conf import settings
 from .utils import normalize_phone, get_guest_phone_from_cookie
+from django.template.loader import render_to_string
+from user.utils import get_popular_products
 
 logger = logging.getLogger(__name__)
 # Create your views here.
@@ -78,9 +80,9 @@ def CategoryProducts(request, slug):
             category_product = category_product.order_by('-calculated_total_reviews', '-calculated_avg_rating')
         # Pagination
         page = request.GET.get('page', 1)
-        paginator = Paginator(category_product, 20)
+        paginator = Paginator(category_product, 12)
         products = paginator.get_page(page)
-        
+
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             product_list = []
             for product in products:
@@ -166,7 +168,8 @@ def ProductDetails(request, product_slug):
     product = get_object_or_404(OurProduct, product_slug=product_slug)
     product.video_id = extract_youtube_id(product.video_url) if product.video_url else None
     how_to_order_id = extract_youtube_id(order_video_url)
-    products_category = OurProduct.objects.filter(product_category=product.product_category)
+    product_category = product.product_category
+    products_category = get_popular_products(limit=10, days=30, category=product_category)
     
     # Get first color or None if no colors exist
     first_color = product.product_colors.first()
@@ -470,6 +473,27 @@ def checkout_view(request):
 
     # 3. Form Submission Handling
     if request.method == 'POST':
+        # Check if it's an AJAX validation request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 'phone' in request.POST:
+            phone = normalize_phone(request.POST.get("phone", ""))
+            response_data = {'valid': True, 'message': ''}
+            
+            if not phone or len(phone) != 11:
+                response_data = {
+                    'valid': False, 
+                    'message': 'Valid 11-digit phone number is required.'
+                }
+            else:
+                valid_operator_codes = ('013', '014', '015', '016', '017', '018', '019')
+                if not phone.startswith(valid_operator_codes):
+                    response_data = {
+                        'valid': False, 
+                        'message': 'Invalid phone number. Must start with 013-019.'
+                    }
+            
+            return JsonResponse(response_data)
+        
+        # Regular form submission handling
         phone = normalize_phone(request.POST.get("phone", ""))
         if not phone or len(phone) != 11:
             messages.error(request, 'Valid 11-digit phone number is required.')
@@ -582,7 +606,7 @@ def checkout_view(request):
             'special_note': shipping_info.special_note or '',
             'delivery_location': shipping_info.delivery_location,
         }
-#item.product.product_image,
+
     cart_items_data = []
     for item in cart_items:
         # Get the correct image based on selected color
@@ -601,15 +625,14 @@ def checkout_view(request):
             "product_id": item.product.id,
             "product_size": item.size,
             "product_color": item.color,
-            #"product_type": item.product.product_type,
         })
+        
     context = {
         "cart_items": cart_items_data,
         "cart_total": sum(item.total_price() for item in cart_items),
         "shipping_form": ShippingInformationForm(initial=initial_data),
     }
     return render(request, "product/checkout.html", context)
-
 def send_verification_code(request, phone, email, verification_code):
     """Trigger Celery task to send verification code"""
     try:
@@ -789,60 +812,109 @@ def order_confirmation_view(request, order_id):
     }
     return render(request, 'product/order_confirmation.html', context)
 
-
+@require_GET
 def search_view(request):
+    """AJAX search for autocomplete suggestions"""
     query = request.GET.get('q', '').strip()
     results = []
     
-    if len(query) >= 2:
-        # Search products - using only existing fields
+    if len(query) < 2:
+        return JsonResponse({'error': 'Query too short'}, status=400)
+    
+    try:
+        # Search products
         products = OurProduct.objects.filter(
             Q(product_name__icontains=query) |
             Q(product_code__icontains=query) |
-            Q(product_details__icontains=query)  # Changed from description to product_details
+            Q(product_details__icontains=query)
         ).values('product_name', 'product_slug')[:5]
+        
         for p in products:
             results.append({
                 'name': p['product_name'],
                 'slug': p['product_slug'],
-                'model': 'ourproduct'
+                'model': 'ourproduct',
+                'url': f"/product-details/{p['product_slug']}/"
             })
         
-        # Search brands - using only existing fields
+        # Search brands - FIXED: Use objects directly instead of values()
         brands = ProductBrand.objects.filter(
             Q(title__icontains=query)
-            # Removed description filter since it's not in your model
-        ).values('title', 'slug')[:3]
+        )[:3]
+        
         for b in brands:
             results.append({
-                'name': b['title'],
-                'slug': b['slug'],
-                'model': 'productbrand'
+                'name': b.title,
+                'slug': b.slug,
+                'model': 'productbrand',
+                'url': f"/brand-products/{b.slug}/" 
             })
         
         # Search categories
         categories = FeatureCategory.objects.filter(
             title__icontains=query
         ).values('title', 'slug')[:3]
+        
         for c in categories:
             results.append({
                 'name': c['title'],
                 'slug': c['slug'],
-                'model': 'featurecategory'
+                'model': 'featurecategory',
+                'url': f"/category-products/{c['slug']}/"
             })
         
         # Search subcategories
         subcategories = ProductSubcategory.objects.filter(
             title__icontains=query
-        ).values('title', 'slug')[:3]
+        )[:3]
+
         for s in subcategories:
+            url = f"/subcategory-products/{s.slug}/"
+            
             results.append({
-                'name': s['title'],
-                'slug': s['slug'],
-                'model': 'productsubcategory'
+                'name': s.title,
+                'slug': s.slug,
+                'model': 'productsubcategory',
+                'url': url
             })
+                
+        # Search ProductMoreSubCategory - NEW
+        more_subcategories = ProductMoreSubCategory.objects.filter(
+            Q(title__icontains=query)
+        )[:3]
+        
+        for msc in more_subcategories:
+            # For ProductMoreSubCategory, we know it has a category field
+            parent_slug = msc.category.slug if msc.category else None
+            
+            if parent_slug:
+                url = f"/products/{parent_slug}/{msc.slug}/"
+            else:
+                url = "#"
+                
+            results.append({
+                'name': msc.title,
+                'slug': msc.slug,
+                'model': 'productmoresubcategory',
+                'url': url
+            })
+        
+        return JsonResponse(results, safe=False)
+        
+    except Exception as e:
+        logger.error(f"Search error: {str(e)}")
+        return JsonResponse({'error': 'Server error'}, status=500)
+
+@require_GET
+def search_results_view(request):
+    """Full search results page - only shows when no suggestions found"""
+    query = request.GET.get('q', '').strip()
     
-    return JsonResponse(results, safe=False)
+    context = {
+        "query": query,
+        "has_results": False 
+    }
+    return render(request, "product/search_results.html", context)
 
 def ContactUsView(request):
     form = ContactWithUsForm()
@@ -1005,12 +1077,20 @@ def update_order_status(request, order_id):
 @user_passes_test(lambda u: u.is_staff or u.is_superuser)
 def order_dashboard(request):
     orders = Order.objects.all().order_by('-created_at')
-    
-    # Apply filters
+
+    # --- Verified filter ---
+    verified_filter = request.GET.get('verified', 'all') 
+    if verified_filter == 'true':
+        orders = orders.filter(is_verified=True)
+    elif verified_filter == 'false':
+        orders = orders.filter(is_verified=False)
+
+    # --- Status filter ---
     status_filter = request.GET.get('status', 'all')
     if status_filter != 'all':
         orders = orders.filter(status=status_filter)
-    
+
+    # --- Search filter ---
     search_query = request.GET.get('search', '').strip()
     if search_query:
         orders = orders.filter(
@@ -1019,7 +1099,8 @@ def order_dashboard(request):
             Q(shipping_info__phone__icontains=search_query) |
             Q(shipping_info__email__icontains=search_query)
         )
-    
+
+    # --- Date filters ---
     date_from = request.GET.get('date_from')
     if date_from:
         try:
@@ -1027,7 +1108,7 @@ def order_dashboard(request):
             orders = orders.filter(created_at__date__gte=date_from)
         except ValueError:
             pass
-    
+
     date_to = request.GET.get('date_to')
     if date_to:
         try:
@@ -1035,11 +1116,13 @@ def order_dashboard(request):
             orders = orders.filter(created_at__date__lte=date_to)
         except ValueError:
             pass
-    
-    paginator = Paginator(orders, 50)  # Show 50 orders per page
+
+    # --- Pagination ---
+    paginator = Paginator(orders, 50)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
+
+    # --- AJAX response ---
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         data = {
             'orders': [{
@@ -1060,12 +1143,13 @@ def order_dashboard(request):
                 'grand_total': float(order.grand_total),
                 'status': order.status,
                 'status_options': [choice[0] for choice in Order._meta.get_field('status').choices],
-                'order_url': reverse('product:order_confirmation', args=[order.order_id])
+                'order_url': reverse('product:order_confirmation', args=[order.order_id]),
+                'is_verified': order.is_verified,
             } for order in page_obj],
             'has_next': page_obj.has_next()
         }
         return JsonResponse(data)
-    
+
     return render(request, 'dashboard/order_dashboard.html')
 
 def schedule_message_view(request):
@@ -1078,3 +1162,52 @@ def schedule_message_view(request):
     else:
         form = ScheduledMessageForm()
     return render(request, "product/schedule_message.html", {"form": form})
+
+def brand_products_view(request, brand_slug):
+    brand = get_object_or_404(ProductBrand, slug=brand_slug)
+    products = OurProduct.objects.filter(product_brand=brand)
+    
+    # Pagination
+    paginator = Paginator(products, 12)  # Show 12 products per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # AJAX request - return JSON with HTML content
+        html = render_to_string('product/product_list_ajax.html', {'products': page_obj})
+        return JsonResponse({
+            'html': html,
+            'has_next': page_obj.has_next(),
+            'next_page_number': page_obj.next_page_number() if page_obj.has_next() else None
+        })
+    
+    context = {
+        'brand': brand,
+        'products': page_obj,
+    }
+    return render(request, 'product/brand_products.html', context)
+
+def subcategory_products_view(request, subcategory_slug):
+    """View to display products by subcategory"""
+    subcategory = get_object_or_404(ProductSubcategory, slug=subcategory_slug)
+    products = OurProduct.objects.filter(product_sub_category=subcategory)
+    
+    # Pagination
+    paginator = Paginator(products, 12)  # Show 12 products per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # AJAX request - return JSON with HTML content
+        html = render_to_string('product/product_list_ajax.html', {'products': page_obj})
+        return JsonResponse({
+            'html': html,
+            'has_next': page_obj.has_next(),
+            'next_page_number': page_obj.next_page_number() if page_obj.has_next() else None
+        })
+    
+    context = {
+        'subcategory': subcategory,
+        'products': page_obj,
+    }
+    return render(request, 'product/subcategory_products.html', context)

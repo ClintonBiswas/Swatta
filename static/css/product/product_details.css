@@ -358,76 +358,7 @@
     cursor: not-allowed;
 }
 
-/* whats app order button */
-.whatsapp-container {
-    max-width: 400px;
-    margin: 0.5rem auto;
-    text-align: center;
-}
 
-.or-divider {
-    display: flex;
-    align-items: center;
-    margin: 0.5rem 0;
-    color: #666;
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.divider-line {
-    flex: 1;
-    height: 1px;
-    background-color: #ddd;
-}
-
-.divider-text {
-    padding: 0 1rem;
-}
-
-.whatsapp-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
-    padding: 0.75rem 1.5rem;
-    background-color: #25D366;
-    color: white;
-    font-weight: 600;
-    text-decoration: none;
-    border-radius: 50px;
-    box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3);
-    transition: all 0.3s ease;
-    border: none;
-    cursor: pointer;
-    width: 100%;
-    max-width: 240px;
-}
-
-.whatsapp-button:hover {
-    background-color: #128C7E;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
-}
-
-.whatsapp-button:active {
-    transform: translateY(0);
-}
-
-.whatsapp-icon {
-    flex-shrink: 0;
-}
-
-@media (max-width: 480px) {
-    .whatsapp-button {
-        padding: 0.65rem 1.25rem;
-        font-size: 0.9rem;
-    }
-    
-    .or-divider {
-        margin: 1.25rem 0;
-    }
-}
 
 /* Wishlist Button */
 .wishlist-container {

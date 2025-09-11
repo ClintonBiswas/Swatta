@@ -280,8 +280,7 @@
             🎉 Order Placed Successfully!
         </div>
 </div>
-
-<div class="container invoice-container" id="invoice-to-print">
+<div class="container">
     <div class="text-right mb-3">
         {% if user.is_staff and user.is_superuser %}
         <button onclick="printInvoice()" class="btn btn-primary mr-2">
@@ -292,6 +291,8 @@
             <i class="fas fa-file-pdf"></i> Download PDF
         </button>
     </div>
+</div>
+<div class="container invoice-container" id="invoice-to-print">
     <div class="card invoice-card p-3 p-md-4">
         <div class="order-header">
             <div>

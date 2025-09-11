@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load user_filters %}
 {% load compress %}
 {% load static %}
 {% block title %}Home{% endblock %}
@@ -108,7 +109,7 @@
                                  <div class="swiper-slide">
                             <div class="product-single-card">
                                         <div class="product-view-badge">
-                                    <i class="bi bi-eye-fill"></i> {{ product.view_count }}
+                                    <i class="bi bi-eye-fill"></i> {{ product.view_count|format_view_count }}
                                 </div>
                                 <a href="{% url 'product:product-details' product_slug=product.product_slug %}" 
                                     class="trackable-product" 

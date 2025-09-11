@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ subcategory.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Same CSS as brand_products.html */
+.load-more-container {
+    text-align: center;
+    margin: 2rem 0;
+}
+
+.load-more-btn {
+    background: linear-gradient(45deg, #3498db, #2980b9);
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 50px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+}
+
+.load-more-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+}
+
+.load-more-btn:disabled {
+    background: #95a5a6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.loading-spinner {
+    display: none;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="breadcrumb-container">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{% url 'user:home' %}">
+                        <i class="bi bi-house-fill"></i>
+                        <span>Home</span>
+                    </a>
+                </li>
+                <li class="breadcrumb-divider">
+                    <i class="bi bi-chevron-right"></i>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page">{{ subcategory.title }}</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+<div class="custom-container py-5">
+    <div class="category-header">
+        <h5 class="category-title">Products in {{ subcategory.title }}</h5>
+    </div>
+    
+    {% if products %}
+    <div id="main-product-card" class="row">
+        {% for product in products %}
+            {% include 'withoutsliderproduct_card.html' %}
+        {% endfor %}
+    </div>
+
+    {% if products.has_next %}
+    <div class="load-more-container">
+        <button id="load-more-btn" class="load-more-btn" data-next-page="2">
+            Load More Products
+        </button>
+        <div id="loading-spinner" class="loading-spinner"></div>
+    </div>
+    {% endif %}
+    
+    {% else %}
+    <div class="col-12 text-center py-5">
+        <h5 style="font-size: 14px;">No products available in this category.</h5>
+    </div>
+    {% endif %}
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    const loadingSpinner = document.getElementById('loading-spinner');
+    const productContainer = document.getElementById('main-product-card');
+    
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', function() {
+            const nextPage = this.getAttribute('data-next-page');
+            const subcategorySlug = '{{ subcategory.slug }}';
+            
+            // Show loading, hide button
+            this.style.display = 'none';
+            loadingSpinner.style.display = 'block';
+            
+            fetch(`/subcategory-products/${subcategorySlug}/?page=${nextPage}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Append new products
+                productContainer.insertAdjacentHTML('beforeend', data.html);
+                
+                // Update button for next page or hide if no more pages
+                if (data.has_next) {
+                    loadMoreBtn.setAttribute('data-next-page', data.next_page_number);
+                    loadMoreBtn.style.display = 'block';
+                } else {
+                    loadMoreBtn.remove();
+                }
+            })
+            .catch(error => {
+                console.error('Error loading more products:', error);
+                loadMoreBtn.style.display = 'block';
+            })
+            .finally(() => {
+                loadingSpinner.style.display = 'none';
+            });
+        });
+    }
+});
+</script>
+{% endblock extra_js %}

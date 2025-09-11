@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Search Results{% endblock title %}
+{% block extra_css %}
+<style>
+        :root {
+        --primary-color: #8a0000;
+        --secondary-color: #2c3e50;
+        --accent-color: #e74c3c;
+        --light-bg: #f8f9fa;
+        --border-color: #dee2e6;
+    }
+    
+    .search-results-container {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        margin-top: 2rem;
+    }
+    
+    .results-count {
+        color: #6c757d;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .result-item {
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--border-color);
+        transition: all 0.3s ease;
+    }
+    
+    .result-item:hover {
+        background-color: var(--light-bg);
+        transform: translateX(5px);
+    }
+    
+    .result-item:last-child {
+        border-bottom: none;
+    }
+    
+    .result-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--secondary-color);
+        margin-bottom: 0.5rem;
+        text-decoration: none;
+        display: block;
+    }
+    
+    .result-title:hover {
+        color: var(--primary-color);
+    }
+    
+    .result-description {
+        color: #6c757d;
+        margin-bottom: 0.75rem;
+    }
+    
+    .result-meta {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        font-size: 0.9rem;
+    }
+    
+    .result-type {
+        background: var(--light-bg);
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+    
+    .no-results {
+        text-align: center;
+        padding: 3rem;
+    }
+    
+    .no-results-icon {
+        font-size: 4rem;
+        color: #ddd;
+        margin-bottom: 1.5rem;
+    }
+    
+    .suggestions {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .suggestions-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: var(--secondary-color);
+    }
+    
+    .suggestion-tag {
+        display: inline-block;
+        background: var(--light-bg);
+        padding: 6px 15px;
+        border-radius: 50px;
+        margin: 0 8px 8px 0;
+        text-decoration: none;
+        color: #495057;
+        transition: all 0.2s ease;
+    }
+    
+    .suggestion-tag:hover {
+        background: var(--primary-color);
+        color: white;
+    }
+    
+    .pagination {
+        justify-content: center;
+        margin-top: 2rem;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .search-results-container,
+        .suggestions {
+            border-radius: 0;
+            padding: 1rem;
+        }
+        
+        .result-item {
+            padding: 1rem;
+        }
+    }
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="breadcrumb-container">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{% url 'user:home' %}">
+                        <i class="bi bi-house-fill"></i>
+                        <span>Home</span>
+                    </a>
+                </li>
+                <li class="breadcrumb-divider">
+                    <i class="bi bi-chevron-right"></i>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page">Search Result</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+<main class="container">
+    <div class="row">
+        <div class="col-12">
+            <!-- Search results container -->
+            <div class="search-results-container">
+                <div class="results-count">
+                    No results found for: <strong>"{{ query }}"</strong>
+                </div>
+                
+                <!-- No results state -->
+                <div class="no-results">
+                    <i class="bi bi-search no-results-icon"></i>
+                    <h3>No results found</h3>
+                    <p class="text-muted">We couldn't find any matches for your search term. Try adjusting your search or explore our suggestions below.</p>
+                </div>
+            </div>
+            
+            <!-- Suggestions for when no results are found -->
+            <div class="suggestions">
+                <h3 class="suggestions-title">Try these popular searches:</h3>
+                <div class="suggestion-tags">
+                    <a href="{% url 'product:subcategory-products' 'new-arrivals' %}" class="suggestion-tag">New Arrivals</a>
+                    <a href="{% url 'product:subcategory-products' 'trending-products' %}" class="suggestion-tag">Trending Products</a>
+                    <a href="{% url 'product:subcategory-products' 'featured-products' %}" class="suggestion-tag">Featured Products</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        // Get URL parameters to get search query
+        const urlParams = new URLSearchParams(window.location.search);
+        const searchQuery = urlParams.get('q') || "";
+        
+        // Update results count text
+        const resultsCount = document.querySelector('.results-count');
+        if (resultsCount) {
+            resultsCount.innerHTML = `No results found for: <strong>"${searchQuery}"</strong>`;
+        }
+    });
+</script>
+{% endblock extra_js %}
