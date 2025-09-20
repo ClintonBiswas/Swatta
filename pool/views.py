@@ -1,4 +1,3 @@
-# views.py
 from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
 from django.http import JsonResponse
@@ -6,10 +5,11 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_protect
 import json
 from .models import Poll, PollOption, Vote
-from product.models import PromoCode, OurProduct, FeatureCategory
-from django.db.models import Q
+from product.models import PromoCode, FeatureCategory
 from django.utils import timezone
 from user.utils import get_popular_products
+from product.utils import send_event
+from .utils import get_client_ip
 
 def poll_list(request):
     polls = Poll.objects.filter(is_active=True).order_by('-created_at')
@@ -83,6 +83,7 @@ def ajax_vote(request):
         Vote.objects.filter(**filter_kwargs).delete()
 
         # --- Save new votes ---
+        voted_options = []
         for option_id in option_ids:
             option = PollOption.objects.get(id=option_id, poll=poll)
             Vote.objects.create(
@@ -92,9 +93,32 @@ def ajax_vote(request):
                 session_key=session_key,
                 ip_address=ip_address,
             )
+            voted_options.append(option.text or str(option.id))
 
         poll.update_total_votes()
         poll.refresh_from_db()
+
+        # -----------------------------
+        # SERVER-SIDE PIXEL: PollVote
+        # -----------------------------
+        user_em = [request.user.email] if request.user.is_authenticated and getattr(request.user, 'email', None) else []
+        user_ph = [getattr(request.user, 'phone_number', '')] if request.user.is_authenticated else []
+
+        send_event(
+            event_name="PollVote",
+            user_data={
+                "em": user_em,
+                "ph": user_ph,
+                "client_ip_address": get_client_ip(request),
+                "client_user_agent": request.META.get("HTTP_USER_AGENT"),
+            },
+            custom_data={
+                "poll_id": poll.id,
+                "option_ids": option_ids,
+                "option_texts": voted_options,
+                "total_votes": poll.total_votes,
+            }
+        )
 
         # --- Prepare results ---
         result_data = []
@@ -113,7 +137,7 @@ def ajax_vote(request):
             'message': 'Your vote has been recorded!',
             'results': result_data,
             'total_votes': poll.total_votes,
-            **promo_data 
+            **promo_data
         })
 
     except json.JSONDecodeError:
@@ -123,13 +147,6 @@ def ajax_vote(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
-
-
-def get_client_ip(request):
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-    if x_forwarded_for:
-        return x_forwarded_for.split(',')[0]
-    return request.META.get('REMOTE_ADDR')
 
 def get_color_for_option(index):
     colors = [

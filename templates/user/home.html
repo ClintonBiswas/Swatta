@@ -24,7 +24,7 @@
                         <div class="carousel-inner">
                             {% for banner in banners %}
                             <div class="carousel-item {% if forloop.first %}active{% endif %}">
-                                <img src="{{ banner.banner_pic.url }}" class="hero-image" alt="{{ banner.title }}">
+                                <img src="{{ banner.banner_pic.url }}" class="hero-image" alt="{{ banner.title }}" loading="lazy">
                                 <div class="hero-content">
                                     <h2 style="color: black;">{{ banner.title }}</h2>
                                     {% if banner.subtitle %}
@@ -50,7 +50,7 @@
                     {% for blog in blogs|slice:":3" %}
                     <div class="blog-card">
                         <div class="blog-image">
-                            <img src="{{ blog.blog_pic.url }}" alt="{{ blog.title }}">
+                            <img src="{{ blog.blog_pic.url }}" alt="{{ blog.title }}" loading="lazy">
                         </div>
                         <div class="blog-content">
                             <span class="blog-date">{{ blog.created_at|date:"M d, Y" }}</span>
@@ -105,7 +105,7 @@
                     <div class="swiper feature-swiper">
                         <div class="swiper-wrapper mb-3">
                             {% for product in popular_products %}
-                                <!-- {% include 'product_card.html' %} -->
+                                
                                  <div class="swiper-slide">
                             <div class="product-single-card">
                                         <div class="product-view-badge">
@@ -140,21 +140,40 @@
                                             </div>
                                         </div>
                                     </a>
-                                    <div class="product-card-buttons">
-                                        {% if product.product_type == "clothes" %}
-                                        <a class="view-details-button" href="{% url 'product:product-details' product.product_slug %}">
-                                            <i class="bi bi-eye"></i>&nbsp;View Details
-                                        </a>
-                                        {% else %}
-                                        <div class="product-card-button-group">
-                                            <a href="" class="buy-noww buy-now-btn" data-product="{{ product.id }}"><i class="bi bi-bag"></i>&nbsp;Buy now</a>
-                                            <a href="" class="add-to-cartt add-to-cart-btn" data-product="{{ product.id }}"><i class="bi bi-cart-check-fill"></i>&nbsp;Add to cart</a>
-                                        </div>
-                                        <div class="mobile-buy-button">
-                                            <a href="" class="buy-noww buy-now-mobile" data-product="{{ product.id }}"><i class="bi bi-bag"></i>&nbsp;Buy now</a>
-                                        </div>
-                                        {% endif %}
-                                    </div>
+<div class="product-card-buttons">
+    {% if product.product_size.exists or product.product_colors.exists %}
+        <a class="view-details-button" href="{% url 'product:product-details' product.product_slug %}">
+            <i class="bi bi-eye"></i>&nbsp;View Details
+        </a>
+    {% else %}
+        <div class="product-card-button-group">
+            <a href="#"
+               class="buy-noww buy-now-btn"
+               data-product="{{ product.id }}"
+               data-product-name="{{ product.product_name|escapejs }}"
+               data-product-price="{{ product.discounted_price }}">
+                <i class="bi bi-bag"></i>&nbsp;Buy now
+            </a>
+            <a href="#"
+               class="add-to-cartt add-to-cart-btn"
+               data-product="{{ product.id }}"
+               data-product-name="{{ product.product_name|escapejs }}"
+               data-product-price="{{ product.discounted_price }}">
+                <i class="bi bi-cart-check-fill"></i>&nbsp;Add to cart
+            </a>
+        </div>
+        <div class="mobile-buy-button">
+            <a href="#"
+               class="buy-noww buy-now-mobile"
+               data-product="{{ product.id }}"
+               data-product-name="{{ product.product_name|escapejs }}"
+               data-product-price="{{ product.discounted_price }}">
+                <i class="bi bi-bag"></i>&nbsp;Buy now
+            </a>
+        </div>
+    {% endif %}
+</div>
+
                                 </div>
                             </div>
                                     
@@ -564,18 +583,27 @@ document.addEventListener("DOMContentLoaded", function() {
                 </a>
             ` : `
             <div class="mobile-buy-button">
-                <a href="#" class="buy-noww buy-now-mobile" data-product="${product.id}">
-                <i class="bi bi-bag"></i>&nbsp;Buy now
+                <a href="#" class="buy-noww buy-now-mobile"
+                   data-product="${product.id}"
+                   data-product-name="${product.name}"
+                   data-product-price="${product.price}">
+                   <i class="bi bi-bag"></i>&nbsp;Buy now
                 </a>
             </div>
             
                 
                     <div class="product-card-button-group">
-                        <a href="#" class="buy-noww buy-now-btn" data-product="${product.id}">
-                            <i class="bi bi-bag"></i>&nbsp;Buy now
+                        <a href="#" class="buy-noww buy-now-btn"
+                        data-product="${product.id}"
+                        data-product-name="${product.name}"
+                        data-product-price="${product.price}">
+                        <i class="bi bi-bag"></i>&nbsp;Buy now
                         </a>
-                        <a href="#" class="add-to-cartt add-to-cart-btn" data-product="${product.id}">
-                            <i class="bi bi-cart-check-fill"></i>&nbsp;Add to cart
+                        <a href="#" class="add-to-cartt add-to-cart-btn"
+                        data-product="${product.id}"
+                        data-product-name="${product.name}"
+                        data-product-price="${product.price}">
+                        <i class="bi bi-cart-check-fill"></i>&nbsp;Add to cart
                         </a>
                     </div>
             `}

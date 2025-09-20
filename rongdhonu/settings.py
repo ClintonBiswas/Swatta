@@ -91,6 +91,7 @@ TEMPLATES = [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'user.context_processors.global_subcategories',
+                'user.context_processors.facebook_pixel',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
             ],
@@ -189,3 +190,9 @@ LOGIN_URL = '/login/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+#Facebook pixel settings
+FACEBOOK_PIXEL_ID = config("FACEBOOK_PIXEL_ID")
+FACEBOOK_ACCESS_TOKEN = config("FACEBOOK_ACCESS_TOKEN")
+FACEBOOK_API_VERSION = config("FACEBOOK_API_VERSION")
+

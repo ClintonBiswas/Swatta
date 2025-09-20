@@ -35,6 +35,7 @@
       My Django App <!-- Default title -->
       {% endblock title %}
     </title>
+    {% include 'includes/pixel.html' %}
   </head>
   <body>
     <!-- Header Section -->
@@ -98,6 +99,7 @@
                 {% endif %}  
             </div>
       </div>
+
       <!-- sidebar menu -->
       
       <div id="sidebar-menu" class="sidebar">
@@ -180,9 +182,15 @@
                 </div>   
             </li>
             {% endif %}
+            {% if user.is_staff and user.is_superuser %}
+            <li class="list-group-item">
+                <div class="menu-item">
+                    <a href="{% url 'product:order_dashboard' %}">Dashboard</a>
+                </div>   
+            </li>
+            {% endif %}
         </ul>
     </div>
-
         <!-- bottom navbar -->
         <div class="bottom-header">
             <div class="bottom-icons">

@@ -30,20 +30,38 @@
                                         </div>
                                     </a>
                                     <div class="product-card-buttons">
-                                        {% if product.product_type == "clothes" %}
-                                        <a class="view-details-button" href="{% url 'product:product-details' product.product_slug %}">
-                                            <i class="bi bi-eye"></i>&nbsp;View Details
-                                        </a>
-                                        {% else %}
-                                        <div class="product-card-button-group">
-                                            <a href="" class="buy-noww buy-now-btn" data-product="{{ product.id }}"><i class="bi bi-bag"></i>&nbsp;Buy now</a>
-                                            <a href="" class="add-to-cartt add-to-cart-btn" data-product="{{ product.id }}"><i class="bi bi-cart-check-fill"></i>&nbsp;Add to cart</a>
-                                        </div>
-                                        <div class="mobile-buy-button">
-                                            <a href="" class="buy-noww buy-now-mobile" data-product="{{ product.id }}"><i class="bi bi-bag"></i>&nbsp;Buy now</a>
-                                        </div>
-                                        {% endif %}
-                                    </div>
+                            {% if product.product_size.exists or product.product_colors.exists %}
+                                <a class="view-details-button" href="{% url 'product:product-details' product.product_slug %}">
+                                    <i class="bi bi-eye"></i>&nbsp;View Details
+                                </a>
+                            {% else %}
+                                <div class="product-card-button-group">
+                                    <a href="#"
+                                    class="buy-noww buy-now-btn"
+                                    data-product="{{ product.id }}"
+                                    data-product-name="{{ product.product_name|escapejs }}"
+                                    data-product-price="{{ product.discounted_price }}">
+                                        <i class="bi bi-bag"></i>&nbsp;Buy now
+                                    </a>
+                                    <a href="#"
+                                    class="add-to-cartt add-to-cart-btn"
+                                    data-product="{{ product.id }}"
+                                    data-product-name="{{ product.product_name|escapejs }}"
+                                    data-product-price="{{ product.discounted_price }}">
+                                        <i class="bi bi-cart-check-fill"></i>&nbsp;Add to cart
+                                    </a>
+                                </div>
+                                <div class="mobile-buy-button">
+                                    <a href="#"
+                                    class="buy-noww buy-now-mobile"
+                                    data-product="{{ product.id }}"
+                                    data-product-name="{{ product.product_name|escapejs }}"
+                                    data-product-price="{{ product.discounted_price }}">
+                                        <i class="bi bi-bag"></i>&nbsp;Buy now
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
                                 </div>
                             </div>
                                     

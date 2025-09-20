@@ -74,7 +74,7 @@ def send_verification_code_task(self, phone, email, verification_code):
             raise ValueError(f"Invalid Bangladeshi phone number: {phone}")
 
         # Prepare messages
-        sms_message = f"Swatta - সত্তা: আপনার কোড {verification_code}। নিরাপত্তার জন্য এটি কারও সাথে শেয়ার করবেন না।"
+        sms_message = f"Swatta - সত্তা\n\nঅর্ডার কনফার্মেশন কোড: {verification_code}\n\n🔒 নিরাপত্তার স্বার্থে দয়া করে এই কোডটি কারও সাথে শেয়ার করবেন না।"
         email_message = f"Your Let's Shop verification code is: {verification_code}\n\nDo not share this code with anyone."
 
         # Try SMS first

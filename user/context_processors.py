@@ -1,5 +1,5 @@
 # user/context_processors.py
-
+from django.conf import settings
 from product.models import ProductMoreSubCategory, FeatureCategory
 
 def global_subcategories(request):
@@ -23,5 +23,10 @@ def global_subcategories(request):
         context[category_mapping[category.slug]] = subcategories
 
     return context
+
+def facebook_pixel(request):
+    return {
+        'FACEBOOK_PIXEL_ID': settings.FACEBOOK_PIXEL_ID
+    }
 
 

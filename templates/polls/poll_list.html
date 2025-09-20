@@ -342,23 +342,35 @@
                 <div class="space-y-3">
                     {% for option in poll.options.all %}
                     <label class="poll-option">
-                        {% if poll.poll_type == 'multiple' %}
-                        <input type="checkbox" name="option" value="{{ option.id }}" class="form-checkbox">
-                        {% else %}
-                        <input type="radio" name="option" value="{{ option.id }}" class="form-radio">
-                        {% endif %}
-                        
-                        <div class="option-content">
-                            {% if option.image %}
+                    {% if poll.poll_type == 'multiple' %}
+                        <input type="checkbox" 
+                            name="option" 
+                            value="{{ option.id }}" 
+                            class="form-checkbox"
+                            data-option-text="{{ option.text|default:option.id }}">
+                    {% else %}
+                        <input type="radio" 
+                            name="option" 
+                            value="{{ option.id }}" 
+                            class="form-radio"
+                            data-option-text="{{ option.text|default:option.id }}">
+                    {% endif %}
+
+                    <div class="option-content">
+                        {% if option.image %}
                             <div class="option-image-container">
-                                <img src="{{ option.image.url }}" alt="{{ option.text }}" class="option-image">
+                                <img src="{{ option.image.url }}" 
+                                    alt="{{ option.text|default:"Option" }}" 
+                                    class="option-image"
+                                    data-option-id="{{ option.id }}">
                             </div>
-                            {% endif %}
-                            {% if option.text %}
+                        {% endif %}
+                        {% if option.text %}
                             <div class="option-text">{{ option.text }}</div>
-                            {% endif %}
-                        </div>
-                    </label>
+                        {% endif %}
+                    </div>
+                </label>
+
                     {% endfor %}
                 </div>
                 
@@ -451,23 +463,23 @@ function showMessage(pollId, message, isError = true) {
     }, 5000);
 }
 
-// Handle voting
+// Handle voting with Meta Pixel tracking
 function vote(pollId) {
     const form = document.getElementById(`poll-form-${pollId}`);
     const inputs = form.querySelectorAll('input[name="option"]:checked');
     const optionIds = Array.from(inputs).map(input => parseInt(input.value));
-    
+
     if (optionIds.length === 0) {
         showMessage(pollId, "Please select at least one option.");
         return;
     }
-    
+
     // Show loading state
     const voteButton = form.querySelector('.vote-button');
     const originalButtonText = voteButton.textContent;
     voteButton.disabled = true;
     voteButton.innerHTML = '<span class="spinner"></span> Voting...';
-    
+
     fetch("{% url 'ajax_vote' %}", {
         method: "POST",
         headers: {
@@ -492,24 +504,23 @@ function vote(pollId) {
         form.style.display = 'none';
         const resultsContainer = document.getElementById(`poll-results-${pollId}`);
         resultsContainer.style.display = 'block';
-        
-        // Update results
+
+        // Update poll results
         updatePollResults(pollId, data.results, data.total_votes);
-        
+
         // Update total votes display
         document.getElementById(`poll-total-votes-${pollId}`).textContent = data.total_votes;
         document.getElementById(`total-votes-${pollId}`).textContent = data.total_votes;
-        
+
         // Handle promo code display
         const promoContainer = document.getElementById(`promo-code-section-${pollId}`);
         if (data.promo_code && data.promo_message && data.discount) {
-            // Update all promo elements
             const promoMessageEl = document.getElementById(`promo-message-${pollId}`);
             const promoCodeEl = document.getElementById(`promo-code-${pollId}`);
             const promoDiscountEl = document.getElementById(`promo-discount-${pollId}`);
             const promoValidEl = document.getElementById(`promo-valid-until-${pollId}`);
             const shopNowLink = document.getElementById(`shop-now-link-${pollId}`);
-            
+
             if (promoMessageEl) promoMessageEl.textContent = data.promo_message;
             if (promoCodeEl) promoCodeEl.textContent = data.promo_code;
             if (promoDiscountEl) promoDiscountEl.textContent = data.discount;
@@ -518,18 +529,39 @@ function vote(pollId) {
                 shopNowLink.href = data.shop_now_url;
                 shopNowLink.style.display = 'block';
             }
-            
+
             promoContainer.style.display = 'block';
         } else {
             promoContainer.style.display = 'none';
         }
-        
+
         // Show appropriate message
         if (data.already_voted) {
             showMessage(pollId, data.message || 'You have already voted. Here are the current results:');
         } else if (data.success) {
             showMessage(pollId, data.message || 'Thank you for voting!', false);
         }
+
+        // -------------------------------
+        // Fire Meta Pixel Custom Event
+        // -------------------------------
+        const pollVoteDetail = {
+            poll_id: pollId,
+            option_ids: optionIds,
+            option_texts: Array.from(inputs).map(input => input.dataset.optionText || input.value),
+            total_votes: data.total_votes,
+            user_status: "{{ request.user.is_authenticated|yesno:'logged_in,guest' }}"
+        };
+
+        // Fire fbq directly
+        if (typeof fbq !== "undefined") {
+            fbq('trackCustom', 'PollVote', pollVoteDetail);
+            console.log('PollVote pixel fired:', pollVoteDetail);
+        }
+
+        // Dispatch a centralized JS event (optional)
+        document.dispatchEvent(new CustomEvent('pixel:poll_vote', { detail: pollVoteDetail }));
+
     })
     .catch(error => {
         showMessage(pollId, error.message);
@@ -540,6 +572,7 @@ function vote(pollId) {
         voteButton.textContent = originalButtonText;
     });
 }
+
 
 // Update poll results with colorful bars
 function updatePollResults(pollId, results, totalVotes) {

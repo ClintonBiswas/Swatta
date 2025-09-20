@@ -98,104 +98,130 @@ document.addEventListener("DOMContentLoaded", () => {
         })
         .catch(error => console.error("Error fetching cart count:", error));
 
-// Add to Cart - Using Event Delegation
+
+//start buy-now add-tocart     
+// ============================
+// Helper: Extract product data
+// ============================
+function getProductData(btn) {
+    let productId = btn.dataset.product;
+    let productName = btn.dataset.productName || productId;
+    let productPrice = parseFloat(btn.dataset.productPrice || 0);
+
+    let quantity = 1;
+    const qtyInput = document.querySelector("#cart-quantity");
+    if (qtyInput) {
+        let parsedQty = parseInt(qtyInput.value);
+        if (!isNaN(parsedQty) && parsedQty > 0) quantity = parsedQty;
+    }
+
+    let size = null;
+    let color = null;
+    const sizeInput = document.querySelector('input[name="size"]:checked');
+    const colorInput = document.querySelector('input[name="color"]:checked');
+    if (sizeInput) size = sizeInput.value;
+    if (colorInput) color = colorInput.value;
+
+    return { productId, productName, productPrice, quantity, size, color };
+}
+
+// ============================
+// Add to Cart - Event Delegation
+// ============================
 document.addEventListener("click", function(event) {
-    // Check if clicked element or its parent has the add-to-cartt class
     const addToCartBtn = event.target.closest(".add-to-cartt");
-    if (addToCartBtn) {
-        event.preventDefault();
+    if (!addToCartBtn) return;
+    event.preventDefault();
 
-        let productId = addToCartBtn.dataset.product;
-        let quantity = 1; // Default quantity, or get from input if available
-        const quantityInput = document.querySelector("#cart-quantity");
-        if (quantityInput) {
-            quantity = parseInt(quantityInput.value);
-        }
+    const { productId, productName, productPrice, quantity, size, color } = getProductData(addToCartBtn);
 
-        // For homepage cards where size/color might not exist
-        let size = null;
-        let color = null;
-        
-        // Try to get from product details page if exists
-        const sizeInput = document.querySelector('input[name="size"]:checked');
-        const colorInput = document.querySelector('input[name="color"]:checked');
-        if (sizeInput) size = sizeInput.value;
-        if (colorInput) color = colorInput.value;
-
-        fetch("/add-to-cart/", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": getCSRFToken(),
-            },
-            body: JSON.stringify({
-                product_id: productId,
+    // Dispatch custom pixel event asynchronously
+    setTimeout(() => {
+        document.dispatchEvent(new CustomEvent("pixel:add_to_cart", {
+            detail: {
+                id: productId,
+                name: productName,
+                price: productPrice,
                 quantity: quantity,
-                size: size,
-                color: color
-            }),
-        })
-        .then((response) => response.json())
-        .then((data) => {
-            if (data.status === "success") {
-                updateCartUI(data);
-                showToast(data.message);
-            } else {
-                alert("Error: " + data.message);
+                currency: "BDT"
             }
-        })
-        .catch(error => console.error("Error:", error));
-    }
+        }));
+    }, 0);
+
+    // AJAX: Add to Cart
+    fetch("/add-to-cart/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCSRFToken(),
+        },
+        body: JSON.stringify({ product_id: productId, quantity, size, color }),
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === "success") {
+            updateCartUI(data);
+            showToast(data.message);
+        } else {
+            alert("Error: " + data.message);
+        }
+    })
+    .catch(err => console.error("Add to Cart Error:", err));
 });
 
-// Buy Now - Using Event Delegation
+// ============================
+// Buy Now - Event Delegation
+// ============================
 document.addEventListener("click", function(event) {
-    // Check if clicked element or its parent has the buy-noww class
     const buyNowBtn = event.target.closest(".buy-noww");
-    if (buyNowBtn) {
-        event.preventDefault();
+    if (!buyNowBtn) return;
+    event.preventDefault();
 
-        const productId = buyNowBtn.dataset.product;
-        let quantity = 1; // Default quantity
-        const quantityInput = document.querySelector("#cart-quantity");
-        if (quantityInput) {
-            quantity = parseInt(quantityInput.value);
-        }
+    const { productId, productName, productPrice, quantity, size, color } = getProductData(buyNowBtn);
 
-        // For homepage cards where size/color might not exist
-        let size = null;
-        let color = null;
-        
-        // Try to get from product details page if exists
-        const sizeInput = document.querySelector('input[name="size"]:checked');
-        const colorInput = document.querySelector('input[name="color"]:checked');
-        if (sizeInput) size = sizeInput.value;
-        if (colorInput) color = colorInput.value;
-
-        fetch("/buy-now/", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": getCSRFToken(),
-            },
-            body: JSON.stringify({
-                product_id: productId,
+    // Dispatch custom pixel events asynchronously
+    setTimeout(() => {
+        document.dispatchEvent(new CustomEvent("pixel:add_to_cart", {
+            detail: {
+                id: productId,
+                name: productName,
+                price: productPrice,
                 quantity: quantity,
-                size: size,
-                color: color
-            }),
-        })
-        .then((response) => response.json())
-        .then((data) => {
-            if (data.status === "success") {
-                window.location.href = data.redirect_url;
-            } else {
-                alert("Error: " + data.message);
+                currency: "BDT"
             }
-        })
-        .catch(error => console.error("Error:", error));
-    }
+        }));
+
+        document.dispatchEvent(new CustomEvent("pixel:initiate_checkout", {
+            detail: {
+                id: productId,
+                name: productName,
+                price: productPrice,
+                quantity: quantity,
+                currency: "BDT"
+            }
+        }));
+    }, 0);
+
+    // AJAX: Buy Now
+    fetch("/buy-now/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCSRFToken(),
+        },
+        body: JSON.stringify({ product_id: productId, quantity, size, color }),
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === "success") {
+            window.location.href = data.redirect_url;
+        } else {
+            alert("Error: " + data.message);
+        }
+    })
+    .catch(err => console.error("Buy Now Error:", err));
 });
+//end buy now and pixel
 
     // Quantity Buttons
     document.querySelectorAll(".quantity-product-button").forEach((button) => {

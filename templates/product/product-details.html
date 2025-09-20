@@ -199,14 +199,34 @@
                 </div>
             </div>
     
-            <div class="action-buttons">
-                <button class="buy-noww btn-buy-now" data-product="{{ products.id }}" {% if not products.product_status %}disabled{% endif %}>
-                    <i class="bi bi-bag"></i> Buy Now
-                </button>
-                <button class="add-to-cartt btn-add-to-cart" data-product="{{ products.id }}" {% if not products.product_status %}disabled{% endif %}>
-                    <i class="bi bi-cart-plus"></i> Add to Cart
-                </button>
-            </div>
+<div class="action-buttons">
+    <button type="button"
+            class="buy-noww btn-buy-now"
+            data-product="{{ products.id }}"
+            data-product-name="{{ products.product_name|escapejs }}"
+            data-product-price="{{ products.discounted_price }}"
+            {% if not products.product_status %}disabled{% endif %}>
+        <i class="bi bi-bag"></i> Buy Now
+    </button>
+
+    <button type="button"
+            class="add-to-cartt btn-add-to-cart"
+            data-product="{{ products.id }}"
+            data-product-name="{{ products.product_name|escapejs }}"
+            data-product-price="{{ products.discounted_price }}"
+            {% if not products.product_status %}disabled{% endif %}>
+        <i class="bi bi-cart-plus"></i> Add to Cart
+    </button>
+</div>
+
+
+<div class="fb-data" data-type="product"
+     data-id="{{ products.product_code }}"
+     data-name="{{ products.product_name|escapejs }}"
+     data-price="{{ products.discounted_price }}">
+</div>
+
+
             <div class="whatsapp-container">
                 <div class="or-divider">
                     <span class="divider-line"></span>
@@ -264,50 +284,62 @@
                 <p>{{products.product_details|safe}}</p>
             </div>
             <!-- start review -->
-            <div id="reviews" class="tab-content">
-                <div class="customer-review-container">
-                    <div class="write-review">
-                        <div class="review-title mb-5">
-                            <h5>Rate & Review This Product</h5>
-                        </div>
-                        <div class="review-form">
-                            <form method="POST">
-                                {% csrf_token %}
-                                {{form|crispy}}
-                                <button class="review-button">Submit Review</button>     
-                            </form>
-                        </div>
-                    </div>
-                    <div class="review-list">
-                        {% if products.reviews.all %}
-                        <div class="customer-review-title mb-5">
-                            <h5>Our Customer Reviews ({{ products.total_reviews }})</h5>
-                            <h5 class="customer-rating">
-                                {{ products.average_rating|floatformat:1 }}
-                            </h5>
-                            
-                            <p style="text-align: center; font-size: 18px; margin-top: 10px; color: #6A6B6C;">based on {{products.total_reviews}} reviews</p>
-                        </div>
-                        <div class="customer-review-list">
-                            {% for review in products.reviews.all %}
-                                <div class="review-item">
-                                    <div class="review-header">
-                                        <span class="review-user">
-                                            {{ review.get_display_name }}
-                                        </span>
-                                        <span class="review-rating">⭐ {{ review.rating }}</span>
-                                    </div>
-                                    <p class="review-comment">{{ review.comment }}</p>
-                                </div>
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <p class="no-review-title">No reviews yet. Be the first to review this product!</p>
-                        {% endif %}
-                    </div>
-                    
-                </div>
+<div id="reviews" class="tab-content">
+    <div class="customer-review-container">
+        <div class="write-review">
+            <div class="review-title mb-5">
+                <h5>Rate & Review This Product</h5>
             </div>
+            <div class="review-form">
+                <form id="review-form" method="POST">
+                    {% csrf_token %}
+                    {{form|crispy}}
+                    <button type="submit" class="review-button">Submit Review</button>     
+                </form>
+                <div id="review-message" class="mt-3" style="display: none;"></div>
+            </div>
+        </div>
+        <div class="review-list">
+            {% if products.reviews.all %}
+            <div class="customer-review-title mb-5">
+                <h5>Our Customer Reviews ({{ products.total_reviews }})</h5>
+                <h5 class="customer-rating">
+                    {{ products.average_rating|floatformat:1 }}
+                </h5>
+                
+                <p style="text-align: center; font-size: 18px; margin-top: 10px; color: #6A6B6C;">based on {{products.total_reviews}} reviews</p>
+            </div>
+            <div id="review-container">
+                {% for review in reviews_page %}
+                    <div class="review-item">
+                        <div class="review-header">
+                            <span class="review-user">
+                                {{ review.get_display_name }}
+                            </span>
+                            <span class="review-rating">⭐ {{ review.rating }}</span>
+                        </div>
+                        <p class="review-comment">{{ review.comment }}</p>
+                        <p class="review-date"><small>{{ review.created_at|date:"F d, Y" }}</small></p>
+                    </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Load more button -->
+            {% if reviews_page.has_next %}
+            <div class="text-center mt-4">
+                <button id="load-more-reviews" class="btn btn-outline-primary" 
+                        data-next-page="{{ reviews_page.next_page_number }}">
+                    Load More Reviews
+                </button>
+            </div>
+            {% endif %}
+            
+            {% else %}
+            <p class="no-review-title">No reviews yet. Be the first to review this product!</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
             <!-- end review -->
             <div id="questions" class="tab-content">
                 <div class="how-to-order-container">
@@ -331,12 +363,13 @@
                     </p>
                     
                     <div class="contact-options">
-                        <a href="#" class="contact-button messenger-button">
+                        <a href="https://m.me/swattaa" class="contact-button messenger-button" target="_blank">
                             <i class="bi bi-chat-fill me-2"></i> Message Us on Facebook
                         </a>
-                        <a href="tel:+1234567890" class="contact-button phone-button">
+                        <a href="tel:+8801628768066" class="contact-button phone-button">
                             <i class="bi bi-telephone-fill me-2"></i> Call Us Now
                         </a>
+
                     </div>
                 </div>
             </div>
@@ -538,20 +571,199 @@ document.addEventListener('DOMContentLoaded', function() {
 
 });
 
-    function loadVideo(el, videoId) {
-        const iframe = document.createElement('iframe');
-        iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&rel=0&modestbranding=1`;
-        iframe.frameBorder = '0';
-        iframe.allowFullscreen = true;
-        iframe.allow = "autoplay; encrypted-media";
-        iframe.loading = 'lazy';
-        iframe.style = "position:absolute;top:0;left:0;width:100%;height:100%;";
-        el.parentNode.replaceChild(iframe, el);
+function loadVideo(el, videoId) {
+    const iframe = document.createElement("iframe");
+    //iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&rel=0&modestbranding=1`;
+    iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1`;
+    iframe.frameBorder = "0";
+    iframe.setAttribute("allowfullscreen", "");
+    iframe.setAttribute("allow", "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share");
+    iframe.loading = "lazy";
+    iframe.style = "position:absolute;top:0;left:0;width:100%;height:100%;";
+    el.parentNode.replaceChild(iframe, el);
+}
+
+
+
+
+ //review handeling
+ function validateReviewText(textarea) {
+    const pattern = /^[A-Za-z\u0980-\u09FF\s]*$/;
+    if (!pattern.test(textarea.value)) {
+        textarea.setCustomValidity('Only Bangla and English letters are allowed (no numbers or special characters).');
+    } else {
+        textarea.setCustomValidity('');
     }
+}
 
-
-
+// AJAX form submission
+document.getElementById('review-form').addEventListener('submit', function(e) {
+    e.preventDefault();
     
+    const form = e.target;
+    const formData = new FormData(form);
+    const messageDiv = document.getElementById('review-message');
+    const reviewContainer = document.getElementById('review-container');
+    const noReviewTitle = document.querySelector('.no-review-title');
+    const customerReviewTitle = document.querySelector('.customer-review-title');
+    const loadMoreButton = document.getElementById('load-more-reviews');
+    
+    fetch('', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            messageDiv.style.display = 'block';
+            messageDiv.className = 'alert alert-success mt-3';
+            messageDiv.textContent = data.message;
+            
+            // Reset form
+            form.reset();
+            
+            // Hide "no reviews" message if it exists
+            if (noReviewTitle) {
+                noReviewTitle.style.display = 'none';
+            }
+            
+            // Create and add the new review to the page
+            const reviewItem = document.createElement('div');
+            reviewItem.className = 'review-item';
+            reviewItem.innerHTML = `
+                <div class="review-header">
+                    <span class="review-user">${data.review.name}</span>
+                    <span class="review-rating">⭐ ${data.review.rating}</span>
+                </div>
+                <p class="review-comment">${data.review.comment}</p>
+                <p class="review-date"><small>${data.review.created_at}</small></p>
+            `;
+            
+            // Add the new review at the top of the reviews list
+            if (reviewContainer) {
+                reviewContainer.insertBefore(reviewItem, reviewContainer.firstChild);
+            } else {
+                // If no review container exists yet, create one
+                const reviewList = document.querySelector('.review-list');
+                const newContainer = document.createElement('div');
+                newContainer.id = 'review-container';
+                newContainer.appendChild(reviewItem);
+                
+                // Create and add the reviews title if it doesn't exist
+                if (!customerReviewTitle) {
+                    const titleDiv = document.createElement('div');
+                    titleDiv.className = 'customer-review-title mb-5';
+                    titleDiv.innerHTML = `
+                        <h5>Our Customer Reviews (1)</h5>
+                        <h5 class="customer-rating">${data.review.rating}.0</h5>
+                        <p style="text-align: center; font-size: 18px; margin-top: 10px; color: #6A6B6C;">
+                            based on 1 review
+                        </p>
+                    `;
+                    reviewList.insertBefore(titleDiv, reviewList.firstChild);
+                }
+                
+                reviewList.appendChild(newContainer);
+            }
+            
+            // Update review count and average rating if elements exist
+            const reviewCountElement = document.querySelector('.customer-review-title h5');
+            const ratingElement = document.querySelector('.customer-rating');
+            const basedOnElement = document.querySelector('.customer-review-title p');
+            
+            if (reviewCountElement) {
+                const currentCount = parseInt(reviewCountElement.textContent.match(/\d+/)[0]);
+                reviewCountElement.textContent = `Our Customer Reviews (${currentCount + 1})`;
+            }
+            
+            if (ratingElement && basedOnElement) {
+                // This is a simplified approach - you might want to recalculate the average
+                // or get the updated average from the server response if needed
+                const currentRating = parseFloat(ratingElement.textContent);
+                const currentCount = parseInt(basedOnElement.textContent.match(/\d+/)[0]);
+                const newAverage = ((currentRating * currentCount) + parseInt(data.review.rating)) / (currentCount + 1);
+                
+                ratingElement.textContent = newAverage.toFixed(1);
+                basedOnElement.textContent = `based on ${currentCount + 1} reviews`;
+            }
+            
+            // If there was a load more button, we might need to adjust pagination
+            if (loadMoreButton) {
+                // You might want to increment the page count or handle pagination logic
+                // This depends on how your pagination is implemented
+            }
+            
+        } else {
+            // Show errors
+            messageDiv.style.display = 'block';
+            messageDiv.className = 'alert alert-danger mt-3';
+            let errorHtml = 'Please correct the following errors:<ul>';
+            
+            for (const field in data.errors) {
+                data.errors[field].forEach(error => {
+                    errorHtml += `<li>${error}</li>`;
+                });
+            }
+            
+            errorHtml += '</ul>';
+            messageDiv.innerHTML = errorHtml;
+        }
+    })
+    .catch(error => {
+        messageDiv.style.display = 'block';
+        messageDiv.className = 'alert alert-danger mt-3';
+        messageDiv.textContent = 'An error occurred. Please try again.';
+    });
+});
+
+// Load more reviews with AJAX
+document.getElementById('load-more-reviews')?.addEventListener('click', function() {
+    const button = this;
+    const nextPage = button.getAttribute('data-next-page');
+    
+    fetch(`?page=${nextPage}`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.text())
+    .then(html => {
+        // Extract reviews from the response
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const newReviews = doc.querySelectorAll('.review-item');
+        const newLoadButton = doc.getElementById('load-more-reviews');
+        
+        // Append new reviews
+        newReviews.forEach(review => {
+            document.getElementById('review-container').appendChild(review);
+        });
+        
+        // Update or remove load more button
+        if (newLoadButton) {
+            button.setAttribute('data-next-page', newLoadButton.getAttribute('data-next-page'));
+        } else {
+            button.remove();
+        }
+    })
+    .catch(error => {
+        console.error('Error loading more reviews:', error);
+    });
+});
+
+// Client-side validation for review text
+function validateReviewText(textarea) {
+    const pattern = /^[A-Za-z\u0980-\u09FF\s]*$/;
+    if (!pattern.test(textarea.value)) {
+        textarea.setCustomValidity('Only Bangla and English letters are allowed (no numbers or special characters).');
+    } else {
+        textarea.setCustomValidity('');
+    }
+}
 
 
 </script>

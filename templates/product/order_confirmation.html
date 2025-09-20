@@ -303,6 +303,14 @@
                 {{ order.get_status_display }}
             </span>
         </div>
+        <div class="fb-data"
+            data-type="order"
+            data-order-id="{{ order.order_id }}"
+            data-value="{{ total_value }}"
+            data-num-items="{{ total_quantity }}"
+            data-contents='[{% for it in order_items %}{"id":"{{ it.product.product_code }}","quantity":{{ it.quantity }}}{% if not forloop.last %},{% endif %}{% endfor %}]'
+            >
+        </div>
 
         <div class="row">
             <div class="col-md-6 mb-4">

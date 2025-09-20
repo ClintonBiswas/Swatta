@@ -9,7 +9,8 @@ from django.core.paginator import Paginator
 from product.models import Order, ShippingInformation
 from blog.models import MyBlog
 from .utils import get_popular_products
-
+from product.utils import send_event
+from pool.utils import get_client_ip
 
 # Create your views here.
 
@@ -35,6 +36,26 @@ def HomeView(request):
     ).select_related('product_category')
     
     blogs = MyBlog.objects.all()
+    # -----------------------------
+    # SERVER-SIDE PIXEL: PageView
+    # -----------------------------
+    user_em = [request.user.email] if request.user.is_authenticated and request.user.email else []
+    user_ph = [getattr(request.user, 'phone_number', None)] if request.user.is_authenticated and getattr(request.user, 'phone_number', None) else []
+
+    send_event(
+        event_name="PageView",
+        user_data={
+            "em": user_em,
+            "ph": user_ph,
+            "client_ip_address": get_client_ip(request),
+            "client_user_agent": request.META.get("HTTP_USER_AGENT"),
+        },
+        custom_data={
+            "page_path": request.path,
+            "page_title": getattr(request, 'title', 'Home'),  # optional
+        }
+    )
+
 
     context = {
         'banners': banner,

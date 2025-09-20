@@ -67,6 +67,17 @@
     background-position: right calc(0.375em + 0.1875rem) center;
     background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
 }
+
+@media (max-width: 768px) {
+  @supports (-webkit-touch-callout: none) {
+    .form-control,
+    .form-select {
+      font-size: 16px !important;
+    }
+  }
+}
+
+
 </style>
 {% endblock extra_css %}
 
@@ -96,6 +107,13 @@
         <div class="checkout-product-details">
             <h5 class="checkout-order">Order Review</h5>
             <div class="checkout-product-card">
+            <div class="fb-data"
+                data-type="cart"
+                data-name="Cart Checkout"
+                data-value="{{ cart_total }}"
+                data-content-ids='[{% for it in cart_items %}"{{ it.product_id }}"{% if not forloop.last %}, {% endif %}{% endfor %}]'>
+            </div>
+
                 {% for item in cart_items %}
             <div class="card mb-3 checkout-card" data-product-id="{{ item.product.id }}" data-item-id="{{ item.id }}">
                 <div class="row g-0 align-items-center d-flex flex-nowrap">
@@ -207,16 +225,6 @@
 <div class="checkout-order-information">
     <h5 class="checkout-order mb-4">Shipping Information</h5>
     <div class="login-container p-4 rounded" style="background-color: white; box-shadow: 0 2px 12px rgba(0,0,0,0.05); border-radius: 8px !important;">
-        {% if messages %}
-        <div class="message-container">
-            {% for message in messages %}
-            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
 <form method="POST" id="checkout-form">
     {% csrf_token %}
     <div class="mb-3">
@@ -265,13 +273,16 @@
     </div>
     
     <!-- Display server-side error messages if any -->
-    {% if messages %}
-    <div class="alert alert-danger mt-3">
-        {% for message in messages %}
-            <p class="mb-0">{{ message }}</p>
-        {% endfor %}
-    </div>
-    {% endif %}
+        {% if messages %}
+        <div class="message-container">
+            {% for message in messages %}
+            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
     
     <button type="submit" class="submit-order w-100 py-2 mt-2 fw-bold" style="border-radius: 6px;">
         <i class="bi bi-lock-fill me-2"></i> Place Order Securely

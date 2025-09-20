@@ -25,6 +25,9 @@ from django.conf import settings
 from .utils import normalize_phone, get_guest_phone_from_cookie
 from django.template.loader import render_to_string
 from user.utils import get_popular_products
+from .utils import send_event
+from .utils import normalize_user_data
+from pool.utils import get_client_ip
 
 logger = logging.getLogger(__name__)
 # Create your views here.
@@ -126,14 +129,22 @@ def CategoryProducts(request, slug):
             return JsonResponse({'error': str(e)}, status=500)
         raise
 
+
 def extract_youtube_id(url):
-    if 'youtube.com/watch' in url:
-        query = parse_qs(urlparse(url).query)
-        return query.get("v", [None])[0]
-    elif 'youtu.be' in url:
-        return urlparse(url).path.lstrip('/')
-    elif 'youtube.com/embed' in url:
-        return urlparse(url).path.split('/')[-1]
+    parsed_url = urlparse(url)
+
+    # Handle https://www.youtube.com/watch?v=xxxx
+    if "youtube.com/watch" in url:
+        return parse_qs(parsed_url.query).get("v", [None])[0]
+
+    # Handle https://youtu.be/xxxx
+    if "youtu.be" in url:
+        return parsed_url.path.lstrip("/")
+
+    # Handle https://www.youtube.com/embed/xxxx
+    if "youtube.com/embed" in url:
+        return parsed_url.path.split("/")[-1]
+
     return None
 
 logger = logging.getLogger(__name__)
@@ -164,7 +175,7 @@ def track_product_view(request, product_slug):
         return JsonResponse({'status': 'error'}, status=500)
 
 def ProductDetails(request, product_slug):
-    order_video_url = "https://www.youtube.com/embed/1CKU8BF-goM"
+    order_video_url = "https://www.youtube.com/watch?v=1CKU8BF-goM"
     product = get_object_or_404(OurProduct, product_slug=product_slug)
     product.video_id = extract_youtube_id(product.video_url) if product.video_url else None
     how_to_order_id = extract_youtube_id(order_video_url)
@@ -174,6 +185,29 @@ def ProductDetails(request, product_slug):
     # Get first color or None if no colors exist
     first_color = product.product_colors.first()
     product_multiple_images = ProductImage.objects.filter(product=product).order_by('display_order')
+
+    # ===== Server-Side ViewContent Pixel =====
+    user_em = [request.user.email] if request.user.is_authenticated and getattr(request.user, 'email', None) else []
+    user_ph = [getattr(request.user, 'phone_number', '')] if request.user.is_authenticated else []
+    user_fullname = [request.user.fullname] if request.user.is_authenticated and getattr(request.user, 'fullname', None) else []
+
+    send_event(
+        event_name="ViewContent",
+        user_data={
+            "em": user_em,
+            "ph": user_ph,
+            "fn": user_fullname,  # use fullname here
+            "client_ip_address": get_client_ip(request),
+            "client_user_agent": request.META.get("HTTP_USER_AGENT"),
+        },
+        custom_data={
+            "content_ids": [product.product_code],
+            "content_name": product.product_name,
+            "currency": "BDT",
+            "value": float(product.discounted_price()),
+        }
+    )
+
     
     # Initialize color_images dictionary
     color_images = {}
@@ -188,13 +222,51 @@ def ProductDetails(request, product_slug):
             } for image in images]
         }
     
+    # Handle AJAX requests
     if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Check if it's a review submission
+        if 'rating' in request.POST:
+            form = ProductReviewForm(request.POST)
+            if form.is_valid():
+                review = form.save(commit=False)
+                review.product = product
+                
+                if request.user.is_authenticated:
+                    review.user = request.user
+                    if not review.name and request.user.name:
+                        review.name = request.user.name
+                else:
+                    review.user = None
+                    review.name = form.cleaned_data.get('name', '')
+                
+                review.save()
+                
+                # Return success response with new review data
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Review submitted successfully!',
+                    'review': {
+                        'name': review.get_display_name(),
+                        'rating': review.rating,
+                        'comment': review.comment,
+                        'created_at': review.created_at.strftime('%B %d, %Y')
+                    }
+                })
+            else:
+                # Return form errors
+                return JsonResponse({
+                    'success': False,
+                    'errors': form.errors
+                })
+        
+        # Handle color image requests (existing code)
         color_id = request.POST.get('color_id')
         images = list(ProductImage.objects.filter(product=product, color_id=color_id)
                       .values('image', 'alt_text', 'display_order')
                       .order_by('display_order'))
         return JsonResponse({'images': images})
     
+    # Handle regular POST requests (non-AJAX fallback)
     if request.method == 'POST':
         form = ProductReviewForm(request.POST)
         if form.is_valid():
@@ -210,7 +282,16 @@ def ProductDetails(request, product_slug):
                 review.name = form.cleaned_data.get('name', '')
             
             review.save()
+    
+    # Handle GET requests
     form = ProductReviewForm()
+    
+    # Implement pagination for reviews
+    all_reviews = product.reviews.all()
+    paginator = Paginator(all_reviews, 3)  # Show 3 reviews per page
+    page_number = request.GET.get('page')
+    reviews_page = paginator.get_page(page_number)
+    
     context = { 
         'products': product,
         'products_category': products_category,
@@ -219,6 +300,7 @@ def ProductDetails(request, product_slug):
         'how_to_order_id': how_to_order_id,
         'color_images': color_images,
         'first_color_id': first_color.id if first_color else None,
+        'reviews_page': reviews_page,  # Add paginated reviews
     }
     return render(request, 'product/product-details.html', context=context)
 
@@ -240,7 +322,6 @@ def add_to_cart(request):
                 session_key = request.session.session_key or request.session.create()
                 cart, created = MyCart.objects.get_or_create(session_key=session_key)
 
-            # Check if item with same product, size and color already exists
             cart_item, created = CartItem.objects.get_or_create(
                 cart=cart,
                 product=product,
@@ -253,20 +334,45 @@ def add_to_cart(request):
                 cart_item.quantity += quantity
                 cart_item.save()
 
+            # ===== send server-side AddToCart event (CAPI) =====
+            user_em = [request.user.email] if request.user.is_authenticated and getattr(request.user, 'email', None) else []
+            user_ph = [getattr(request.user, 'phone_number', '')] if request.user.is_authenticated else []
+            user_fullname = [getattr(request.user, 'fullname', '')] if request.user.is_authenticated else []
+
+            event_id = send_event(
+                event_name="AddToCart",
+                user_data={
+                    "em": user_em,
+                    "ph": user_ph,
+                    "fn": user_fullname,  # use fullname
+                    "client_ip_address": get_client_ip(request),
+                    "client_user_agent": request.META.get("HTTP_USER_AGENT"),
+                },
+                custom_data={
+                    "content_ids": [product.product_code],
+                    "content_name": product.product_name,
+                    "currency": "BDT",
+                    "value": float(product.discounted_price()) * quantity,
+                    "quantity": quantity,
+                }
+            )
+            # ====================================================
+
             return JsonResponse({
                 "status": "success",
                 "message": "Item added to cart!",
                 "cart_count": cart.total_items(),
                 "cart_total": str(cart.total_price()),
-                "item": cart_item.to_dict(),  # Use the serialized version
+                "item": cart_item.to_dict(),
+                "event_id": event_id,
             })
-            
+
         except Exception as e:
             return JsonResponse({
                 "status": "error",
                 "message": str(e)
             }, status=400)
-            
+
     return JsonResponse({"status": "error", "message": "Invalid request"}, status=400)
 
 def get_cart_count(request):
@@ -421,10 +527,50 @@ def buy_now(request):
                 color=color
             )
 
+            # ===== Server-side Pixel Tracking =====
+            user_em = [request.user.email] if request.user.is_authenticated and getattr(request.user, 'email', None) else []
+            user_ph = [getattr(request.user, 'phone_number', '')] if request.user.is_authenticated else []
+            user_fullname = [getattr(request.user, 'fullname', '')] if request.user.is_authenticated else []
+
+            user_data = {
+                "em": user_em,
+                "ph": user_ph,
+                "fn": user_fullname,
+                "client_ip_address": get_client_ip(request),
+                "client_user_agent": request.META.get("HTTP_USER_AGENT"),
+            }
+
+            # AddToCart event
+            send_event(
+                event_name="AddToCart",
+                user_data=user_data,
+                custom_data={
+                    "content_ids": [product.product_code],
+                    "content_name": product.product_name,
+                    "currency": "BDT",
+                    "value": float(product.discounted_price()) * quantity,
+                    "quantity": quantity,
+                }
+            )
+
+            # InitiateCheckout event
+            send_event(
+                event_name="InitiateCheckout",
+                user_data=user_data,
+                custom_data={
+                    "content_ids": [product.product_code],
+                    "content_name": product.product_name,
+                    "currency": "BDT",
+                    "value": float(product.discounted_price()) * quantity,
+                    "quantity": quantity,
+                }
+            )
+            # =====================================
+
             return JsonResponse({
                 "status": "success",
                 "redirect_url": "/checkout/",
-                "item": {  # Include item details for immediate UI update if needed
+                "item": {  
                     "id": cart_item.id,
                     "product_id": product.id,
                     "product_image": request.build_absolute_uri(cart_item.display_image),
@@ -433,7 +579,6 @@ def buy_now(request):
                     "quantity": quantity,
                     "product_size": size,
                     "product_color": color,
-                    #"product_type": product.product_type,
                 }
             })
         except Exception as e:
@@ -441,6 +586,7 @@ def buy_now(request):
                 "status": "error", 
                 "message": str(e)
             }, status=400)
+
     return JsonResponse({"status": "error", "message": "Invalid request"}, status=400)
 
 def checkout_view(request):
@@ -578,7 +724,39 @@ def checkout_view(request):
         # Send verification code
         if not send_verification_code(request, phone, form_data['email'], verification_code):
             return redirect('product:checkout')
+        # 🔹 SEND FACEBOOK EVENT (InitiateCheckout)
+        try:
+            user_fullname = [getattr(request.user, 'fullname', '')] if request.user.is_authenticated else []
 
+            raw_user_data = {
+                "em": [form_data.get('email')] if form_data.get('email') else [],
+                "ph": [phone] if phone else [],
+                "fn": user_fullname,
+                "client_user_agent": request.META.get("HTTP_USER_AGENT"),
+                "client_ip_address": get_client_ip(request),  # Use helper to get real IP
+            }
+
+            user_data = normalize_user_data(raw_user_data)
+
+            custom_data = {
+                "currency": "BDT",
+                "value": sum(item.total_price() for item in cart_items),
+                "contents": [
+                    {"id": str(item.product.id), "quantity": item.quantity}
+                    for item in cart_items
+                ],
+                "content_type": "product",
+            }
+
+            event_id = send_event(
+                event_name="InitiateCheckout",
+                user_data=user_data,
+                custom_data=custom_data
+            )
+            logger.info(f"InitiateCheckout Pixel Event sent with event_id={event_id}")
+
+        except Exception as e:
+            logger.error(f"Pixel event send error: {str(e)}")
         # Clear messages and set cookie
         list(messages.get_messages(request))
         response = redirect('product:verify_email')
@@ -626,13 +804,15 @@ def checkout_view(request):
             "product_size": item.size,
             "product_color": item.color,
         })
-        
+
+
     context = {
         "cart_items": cart_items_data,
         "cart_total": sum(item.total_price() for item in cart_items),
         "shipping_form": ShippingInformationForm(initial=initial_data),
     }
     return render(request, "product/checkout.html", context)
+
 def send_verification_code(request, phone, email, verification_code):
     """Trigger Celery task to send verification code"""
     try:
@@ -787,8 +967,7 @@ def clear_verification_session(request):
 def order_confirmation_view(request, order_id):
     order = get_object_or_404(Order, order_id=order_id)
     order_items = OrderItem.objects.filter(order=order).select_related('product')
-    
-    # Prepare order items with correct images
+
     order_items_data = []
     for item in order_items:
         order_items_data.append({
@@ -797,20 +976,56 @@ def order_confirmation_view(request, order_id):
             'price': item.price,
             'size': item.size,
             'color': item.color,
-            'image': item.display_image,  # Use our new property
+            'image': item.display_image,
             'total': item.price * item.quantity
         })
-    
-    # Calculate total quantity
+
     total_quantity = sum(item.quantity for item in order_items)
-    
+    # 🔹 SERVER-SIDE PIXEL: Purchase
+    total_value = sum(float(item.price) * item.quantity for item in order_items)
+
+    # Safe email/phone
+    user_email = getattr(order.shipping_info, 'email', None)
+    user_phone = getattr(order.shipping_info, 'phone', None)
+    user_fullname = [getattr(order.shipping_info, 'fullname', '')] if getattr(order.shipping_info, 'fullname', None) else []
+
+    event_id = send_event(
+        event_name="Purchase",
+        user_data={
+            "em": [user_email] if user_email else [],
+            "ph": [user_phone] if user_phone else [],
+            "fn": user_fullname,
+            "client_user_agent": request.META.get("HTTP_USER_AGENT"),
+            "client_ip_address": get_client_ip(request),
+        },
+        custom_data={
+            "currency": "BDT",
+            "value": total_value,
+            "contents": [
+                {
+                    "id": item.product.product_code,
+                    "quantity": item.quantity,
+                    "item_price": float(item.price)
+                }
+                for item in order_items
+            ],
+            "content_type": "product",
+        }
+    )
+
+    logger.info(f"Purchase Pixel Event sent with event_id={event_id}")
+
+
     context = {
         'order': order,
         'order_items': order_items_data,
         'total_quantity': total_quantity,
-        'shipping_info': order.shipping_info
+        'shipping_info': order.shipping_info,
+        'event_id': event_id,
+        'total_value': total_value, 
     }
     return render(request, 'product/order_confirmation.html', context)
+
 
 @require_GET
 def search_view(request):
