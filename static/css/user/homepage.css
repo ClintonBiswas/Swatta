@@ -553,7 +553,6 @@
 .hero-carousel {
     border-radius: var(--border-radius);
     overflow: hidden;
-    box-shadow: var(--shadow);
     height: 100%;
 }
 
@@ -692,7 +691,9 @@
     }
     
     .hero-image {
-        height: 500px;
+        width: 100%;
+        height: 50vh;
+        max-height: 500px;
         object-fit: cover;
     }
 }

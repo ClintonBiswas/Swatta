@@ -47,7 +47,7 @@
                 </div>
                 
                 <div class="blog-slider">
-                    {% for blog in blogs|slice:":3" %}
+                    {% for blog in blogs|slice:":2" %}
                     <div class="blog-card">
                         <div class="blog-image">
                             <img src="{{ blog.blog_pic.url }}" alt="{{ blog.title }}" loading="lazy">

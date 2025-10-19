@@ -137,7 +137,7 @@ body{
 }
 @media (max-width: 992px){
     .breadcrumb-container{
-        margin-top: 90px;
+        margin-top: 50px;
     }
 }
 
@@ -534,7 +534,7 @@ body{
 /* Responsive Adjustments */
 
 /* Laptops (4 columns) */
-@media (max-width: 1280px) {
+@media (max-width: 1440px) {
     #main-product-card {
         grid-template-columns: repeat(4, 1fr);
         gap: 20px;
