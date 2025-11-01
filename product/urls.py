@@ -27,4 +27,5 @@ urlpatterns = [
     path('update-order-status/<int:order_id>/', views.update_order_status, name='update_order_status'),
     path('contact/', views.ContactUsView, name='contact'),
     path("schedule-message/", views.schedule_message_view, name="schedule_message"),
+    path("facebook-product-feed.xml", views.facebook_product_feed, name="facebook_product_feed"),
 ]

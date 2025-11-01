@@ -1,4 +1,4 @@
-from django.shortcuts import render, get_object_or_404, redirect
+from django.shortcuts import render, get_object_or_404, redirect, HttpResponse
 from .models import OurProduct, ProductImage, MyCart, CartItem, ShippingInformation, OrderItem, Order, ProductBrand, FeatureCategory, ProductSubcategory, PromoCode, Wishlist, ProductView, ProductMoreSubCategory
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -81,9 +81,11 @@ def CategoryProducts(request, slug):
             category_product = category_product.order_by('-calculated_discounted_price')
         elif sort_by == 'most_rated':
             category_product = category_product.order_by('-calculated_total_reviews', '-calculated_avg_rating')
+        else:
+            category_product = category_product.order_by('-id')
         # Pagination
         page = request.GET.get('page', 1)
-        paginator = Paginator(category_product, 12)
+        paginator = Paginator(category_product, 10)
         products = paginator.get_page(page)
 
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
@@ -1408,7 +1410,7 @@ def subcategory_products_view(request, subcategory_slug):
     products = OurProduct.objects.filter(product_sub_category=subcategory)
     
     # Pagination
-    paginator = Paginator(products, 12)  # Show 12 products per page
+    paginator = Paginator(products, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
@@ -1426,3 +1428,46 @@ def subcategory_products_view(request, subcategory_slug):
         'products': page_obj,
     }
     return render(request, 'product/subcategory_products.html', context)
+
+
+#############
+#Facebook product Feed
+from django.utils.html import escape
+from django.contrib.sites.models import Site
+def facebook_product_feed(request):
+    products = OurProduct.objects.filter(product_status=True)
+    current_site = Site.objects.get_current()
+    domain = f"https://{current_site.domain}"
+
+    xml_data = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml_data += '<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">\n'
+    xml_data += '<channel>\n'
+    xml_data += '<title>Your Shop Product Feed</title>\n'
+
+    for p in products:
+        xml_data += "<item>\n"
+        xml_data += f"<g:id>{escape(p.product_code)}</g:id>\n"
+        xml_data += f"<title>{escape(p.product_name)}</title>\n"
+        xml_data += f"<description>{escape(p.product_details[:500])}</description>\n"
+        xml_data += f"<link>{domain}/product-details/{p.product_slug}/</link>\n"
+        xml_data += f"<g:image_link>{domain}{p.product_image.url}</g:image_link>\n"
+        xml_data += f"<g:price>{p.product_price} BDT</g:price>\n"
+        xml_data += f"<g:availability>in stock</g:availability>\n"
+        xml_data += f"<g:condition>new</g:condition>\n"
+
+        # Category
+        if p.product_category:
+            xml_data += f"<g:product_type>{escape(p.product_category.title)}</g:product_type>\n"
+
+        # Brand
+        if p.product_brand:
+            xml_data += f"<g:brand>{escape(p.product_brand.title)}</g:brand>\n"
+
+        # SKU / Unique Code
+        xml_data += f"<g:sku>{escape(p.product_code)}</g:sku>\n"
+
+        xml_data += "</item>\n"
+
+    xml_data += "</channel>\n</rss>"
+
+    return HttpResponse(xml_data, content_type="application/xml")
