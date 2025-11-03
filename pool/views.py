@@ -111,7 +111,11 @@ def ajax_vote(request):
                 "ph": user_ph,
                 "client_ip_address": get_client_ip(request),
                 "client_user_agent": request.META.get("HTTP_USER_AGENT"),
+                "fbc": [request.COOKIES.get("_fbc")] if request.COOKIES.get("_fbc") else [],
+                "fbp": [request.COOKIES.get("_fbp")] if request.COOKIES.get("_fbp") else [],
+                
             },
+            
             custom_data={
                 "poll_id": poll.id,
                 "option_ids": option_ids,

@@ -106,10 +106,19 @@
             </div>
             
             <div class="availability">
-                <span>Availability:</span>
-                <strong class="{% if products.product_status %}in-stock{% else %}out-of-stock{% endif %}">
-                    {% if products.product_status %}In Stock{% else %}Out of Stock{% endif %}
-                </strong>
+                <div class="left-section">
+                    <span>Availability:</span>
+                    <strong class="{% if products.product_status %}in-stock{% else %}out-of-stock{% endif %}">
+                        {% if products.product_status %}In Stock{% else %}Out of Stock{% endif %}
+                    </strong>
+                </div>
+                
+                {% if products.product_make %}
+                <div class="right-section">
+                    <span>Product Type:</span>
+                    <strong>{{products.product_make}}</strong>
+                </div>
+                {% endif %}
             </div>
             
             <div class="product-categories">

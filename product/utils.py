@@ -36,32 +36,51 @@ def hash_data(data):
     """Return SHA256 hash for a single string (or None)."""
     return hashlib.sha256(data.strip().lower().encode()).hexdigest() if data else None
 
+def _ensure_list(val):
+    if val is None:
+        return []
+    if isinstance(val, (list, tuple)):
+        return [v for v in val if v is not None and v != ""]
+    return [val]
+
 def normalize_user_data(user_data):
     """
-    Accepts user_data like {"em":[...], "ph":[...], ...}
-    Hashes em and ph automatically. Leaves other fields untouched.
+    Accepts user_data like {"em":[...], "ph":[...], "fbc": "...", ...}
+    Hashes em and ph automatically. Leaves fbc/fbp/fn/ip/ua untouched.
     """
     if not user_data:
         return {}
 
     normalized = {}
     for k, vals in user_data.items():
-        if not vals:
+        if vals is None or vals == []:
             continue
+
+        # emails & phones: ensure list and hash each value
         if k in ("em", "ph"):
-            # ensure list and hash each
-            normalized[k] = [hash_data(v) for v in vals if v]
+            values = _ensure_list(vals)
+            hashed = [hash_data(v) for v in values if v]
+            if hashed:
+                normalized[k] = hashed
+        # pass-through single or list values (fbc, fbp, fn, client_ip_address, client_user_agent)
+        elif k in ("fbc", "fbp", "fn", "client_ip_address", "client_user_agent"):
+            # keep as-is (string or list) but normalize to string if single-element list
+            if isinstance(vals, (list, tuple)) and len(vals) == 1:
+                normalized[k] = vals[0]
+            else:
+                normalized[k] = vals
         else:
+            # fallback - keep other fields untouched
             normalized[k] = vals
     return normalized
 
-def send_event(event_name, user_data=None, custom_data=None, test_event_code=None):
+def send_event(event_name, user_data=None, custom_data=None, test_event_code=None, event_id=None):
     """
-    Send event to Meta Conversions API and return generated event_id.
-    Automatically hashes email & phone in user_data.
+    Send event to Meta Conversions API and return generated or provided event_id.
     """
     api_url = f"https://graph.facebook.com/{API_VERSION}/{PIXEL_ID}/events"
-    event_id = str(uuid.uuid4())
+    # use provided event_id or generate one
+    event_id = event_id or str(uuid.uuid4())
 
     payload = {
         "data": [
@@ -70,7 +89,7 @@ def send_event(event_name, user_data=None, custom_data=None, test_event_code=Non
                 "event_time": int(time.time()),
                 "event_id": event_id,
                 "action_source": "website",
-                "user_data": normalize_user_data(user_data),
+                "user_data": normalize_user_data(user_data or {}),
                 "custom_data": custom_data or {}
             }
         ],
@@ -84,13 +103,7 @@ def send_event(event_name, user_data=None, custom_data=None, test_event_code=Non
         r = requests.post(api_url, json=payload, timeout=6)
         r.raise_for_status()
     except Exception as e:
-        # Log the error in production logger, here a print helps debugging
         print(f"[CAPI ERROR] event={event_name} id={event_id} err={str(e)} payload={payload}")
-    else:
-        # Optionally print success during development
-        # print(f"[CAPI SUCCESS] {event_name} -> {event_id}")
-        pass
-
     return event_id
 
 

@@ -1,97 +1,118 @@
+// ============================
+// fb-data.js - Browser-side Pixel Fix
+// ============================
+
 (function(){
-  // Helper to safely parse dataset numbers
-  function parsePrice(v){ var n = parseFloat(v); return isFinite(n) ? n : 0; }
-  function parseIntSafe(v){ var n = parseInt(v); return isFinite(n) ? n : 0; }
+    // Helpers
+    function parsePrice(v){ var n = parseFloat(v); return isFinite(n) ? n : 0; }
+    function parseIntSafe(v){ var n = parseInt(v); return isFinite(n) ? n : 0; }
 
-document.addEventListener("DOMContentLoaded", function() {
-    var fbElements = document.querySelectorAll('.fb-data');
-    fbElements.forEach(function(fbData) {
-        var t = fbData.dataset.type;
-        console.log("data-type:", t);
-
-        if (t === 'product') {
-            fbq('track', 'ViewContent', {
-                content_ids: [fbData.dataset.id],
-                content_name: fbData.dataset.name || '',
-                currency: 'BDT',
-                value: parseFloat(fbData.dataset.price || 0)
-            });
+    // Fire fbq with optional eventID and log to console
+    function fireBrowserEvent(eventName, payload, eventID){
+        if(typeof fbq === 'undefined'){
+            console.warn('FBX Warning: fbq not loaded yet', eventName, payload);
+            return;
         }
-
-        if (t === 'cart') {
-            fbq('track', 'InitiateCheckout', {
-                content_name: fbData.dataset.name || 'Cart',
-                currency: 'BDT',
-                value: parseFloat(fbData.dataset.value || 0),
-                content_ids: JSON.parse(fbData.dataset.contentIds || "[]")
-            });
+        try {
+            if(eventID){
+                fbq('track', eventName, payload, { eventID: eventID });
+            } else {
+                fbq('track', eventName, payload);
+            }
+            console.log('%cFBX fired:', 'color:green;font-weight:bold', eventName, payload, eventID ? 'EventID: ' + eventID : '');
+        } catch(e){
+            console.error('FBX error:', e);
         }
+    }
 
-        if (t === 'order') {
-            fbq('track', 'Purchase', {
-                order_id: fbData.dataset.orderId,
-                value: parseFloat(fbData.dataset.value || 0),
-                currency: 'BDT',
-                contents: JSON.parse(fbData.dataset.contents || "[]"),
-                num_items: parseInt(fbData.dataset.numItems || 0)
-            });
-        }
+    // -----------------------------
+    // DOMContent Loaded: Static fb-data elements
+    // -----------------------------
+    document.addEventListener("DOMContentLoaded", function(){
+        console.log('%cFBX: DOM Loaded - scanning .fb-data elements', 'color:blue;font-weight:bold');
+
+        // Fire PageView always
+        //fireBrowserEvent('PageView', { page_path: window.location.pathname, page_title: document.title });
+
+        // Scan .fb-data elements
+        var fbElements = document.querySelectorAll('.fb-data');
+        fbElements.forEach(function(fbData){
+            var t = fbData.dataset.type;
+            var eventId = fbData.dataset.eventId || null;
+            console.log('%cFBX found .fb-data element:', 'color:purple', t, fbData.dataset);
+
+            if(t === 'product'){
+                fireBrowserEvent('ViewContent', {
+                    content_ids: [fbData.dataset.id],
+                    content_name: fbData.dataset.name || '',
+                    currency: 'BDT',
+                    value: parsePrice(fbData.dataset.price || 0)
+                }, eventId);
+            }
+
+            if(t === 'cart'){
+                fireBrowserEvent('InitiateCheckout', {
+                    content_ids: JSON.parse(fbData.dataset.contentIds || "[]"),
+                    content_name: fbData.dataset.name || 'Cart',
+                    currency: 'BDT',
+                    value: parsePrice(fbData.dataset.value || 0)
+                }, eventId);
+            }
+
+            // if(t === 'order'){
+            //     var purchasePayload = {
+            //         content_ids: JSON.parse(fbData.dataset.contentIds || "[]"),
+            //         content_name: fbData.dataset.name || 'Order',
+            //         content_type: 'product',
+            //         value: parsePrice(fbData.dataset.value || 0)
+            //     };
+            //     // Only include num_items if valid
+            //     var numItems = parseIntSafe(fbData.dataset.numItems || 0);
+            //     if(numItems > 0) purchasePayload.num_items = numItems;
+            //     fireBrowserEvent('Purchase', purchasePayload, eventId);
+            // }
+        });
     });
-});
 
+    // -----------------------------
+    // Listen for custom JS events (main.js)
+    // -----------------------------
+    document.addEventListener('pixel:add_to_cart', function(e){
+        var d = e.detail || {};
+        fireBrowserEvent('AddToCart', {
+            content_ids: [d.id],
+            content_name: d.name || '',
+            currency: 'BDT',
+            value: parsePrice(d.price) * parseIntSafe(d.quantity),
+            quantity: parseIntSafe(d.quantity)
+        }, d.event_id);
+    });
 
-  // FUNCTION that fires a browser fbq event from a supplied payload
-  function fireBrowserEvent(eventName, payload) {
-      if (typeof fbq === 'undefined') return;
-      try {
-          fbq('track', eventName, payload);
-          console.log('FBX fired:', eventName, payload);
-      } catch (e) {
-          console.error('fbq error', e);
-      }
-  }
+    document.addEventListener('pixel:initiate_checkout', function(e){
+        var d = e.detail || {};
+        fireBrowserEvent('InitiateCheckout', {
+            content_ids: d.ids || (d.id ? [d.id] : []),
+            content_name: d.name || 'Cart Checkout',
+            content_type: 'product',
+            currency: 'BDT',
+            value: parsePrice(d.value || (d.price * (d.quantity || 1))),
+            quantity: parseIntSafe(d.quantity) || undefined
+        }, d.event_id);
+    });
 
-  // LISTEN for application-level custom events dispatched by main.js
-  // The main.js SHOULD dispatch events (see below) after successful actions:
-  //  document.dispatchEvent(new CustomEvent('pixel:add_to_cart', { detail: {...} }));
-  //  document.dispatchEvent(new CustomEvent('pixel:initiate_checkout', { detail: {...} }));
-  //  document.dispatchEvent(new CustomEvent('pixel:purchase', { detail: {...} }));
-
-  document.addEventListener('pixel:add_to_cart', function(e){
-      var d = e.detail || {};
-      fireBrowserEvent('AddToCart', {
-          content_ids: [d.id],
-          content_name: d.name || '',
-          currency: d.currency || 'BDT',
-          value: (parsePrice(d.price) * parseIntSafe(d.quantity)),
-          quantity: parseIntSafe(d.quantity)
-      });
-  });
-
-  document.addEventListener('pixel:initiate_checkout', function(e){
-      var d = e.detail || {};
-      fireBrowserEvent('InitiateCheckout', {
-          content_ids: d.ids || (d.id ? [d.id] : []),
-          content_name: d.name || 'Cart Checkout',
-          content_type: 'product',
-          currency: d.currency || 'BDT',
-          value: parsePrice(d.value || (d.price * (d.quantity || 1))),
-          quantity: parseIntSafe(d.quantity) || undefined
-      });
-  });
-
-  document.addEventListener('pixel:purchase', function(e){
-      var d = e.detail || {};
-      // d.contents expected as [{id:, quantity:, item_price:}, ...]
-      var ids = (d.contents || []).map(function(it){ return it.id; });
-      fireBrowserEvent('Purchase', {
-          content_ids: ids,
-          content_name: d.order_name || 'Order',
-          content_type: 'product',
-          currency: d.currency || 'BDT',
-          value: parsePrice(d.value),
-          num_items: parseIntSafe(d.num_items) || undefined
-      });
-  });
+    document.addEventListener('pixel:purchase', function(e){
+        var d = e.detail || {};
+        var ids = (d.contents || []).map(function(it){ return it.id; });
+        var purchasePayload = {
+            content_ids: ids,
+            content_name: d.order_name || 'Order',
+            content_type: 'product',
+            value: parsePrice(d.value),
+            currency: 'BDT'
+        };
+        var numItems = parseIntSafe(d.num_items || 0);
+        if(numItems > 0) purchasePayload.num_items = numItems;
+        fireBrowserEvent('Purchase', purchasePayload, d.event_id);
+    });
 
 })();

@@ -39,7 +39,7 @@ def HomeView(request):
     # -----------------------------
     # SERVER-SIDE PIXEL: PageView
     # -----------------------------
-    user_em = [request.user.email] if request.user.is_authenticated and request.user.email else []
+    user_em = [request.user.email] if request.user.is_authenticated and getattr(request.user, 'email', None) else []
     user_ph = [getattr(request.user, 'phone_number', None)] if request.user.is_authenticated and getattr(request.user, 'phone_number', None) else []
 
     send_event(
@@ -49,12 +49,16 @@ def HomeView(request):
             "ph": user_ph,
             "client_ip_address": get_client_ip(request),
             "client_user_agent": request.META.get("HTTP_USER_AGENT"),
+            # ⭐ REQUIRED for high match score
+            "fbc": [request.COOKIES.get("_fbc")] if request.COOKIES.get("_fbc") else [],
+            "fbp": [request.COOKIES.get("_fbp")] if request.COOKIES.get("_fbp") else [],
         },
         custom_data={
             "page_path": request.path,
             "page_title": getattr(request, 'title', 'Home'),  # optional
         }
     )
+
 
 
     context = {

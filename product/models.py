@@ -65,11 +65,14 @@ class ProductColor(models.Model):
     def __str__(self):
         return self.name
 
-# product_type_choice = (
-#     ('clothes', 'clothes'),
-#     ('saree', 'saree'),
-#     ('other', 'other'),
-# )
+product_type_choice = (
+    ('Boutique', 'Boutique'),
+    ('Pakistani', 'Pakistani'),
+    ('Batik', 'Batik'),
+    ('Silk', 'Silk'),
+    ('Half Silk', 'Half Silk'),
+    ('Tant', 'Tant'),
+)
 class ProductSizes(models.Model):
     title = models.CharField(max_length=10)
 
@@ -101,7 +104,7 @@ class OurProduct(models.Model):
         validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])],
         )
     product_price = models.DecimalField(max_digits=10, decimal_places=2)
-    #product_type = models.CharField(choices=product_type_choice, max_length=100)
+    product_make = models.CharField(choices=product_type_choice, max_length=100, blank=True)
     product_size = models.ManyToManyField(ProductSizes, blank=True)
     product_status = models.BooleanField(default=True)
     product_code = models.CharField(max_length=12, unique=True, blank=True)

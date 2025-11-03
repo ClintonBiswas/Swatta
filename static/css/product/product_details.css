@@ -168,8 +168,16 @@
 /* Availability */
 .availability {
     display: flex;
-    gap: 0.5rem;
-    font-size: 0.95rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+    font-size: 0.9rem;
+    color: var(--dark-gray);
+}
+
+.right-section strong{
+    color: var(--main-color);
+    font-weight: 800;
 }
 
 .in-stock {

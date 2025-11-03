@@ -13,6 +13,17 @@
 
 fbq('init', '{{ FACEBOOK_PIXEL_ID }}');
 fbq('track', 'PageView');
+(function() {
+    function getCookie(name){
+        const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+        return match ? match[2] : null;
+    }
+
+    if (!getCookie("_fbc") && window.location.search.includes("fbclid=")) {
+        const fbclid = new URLSearchParams(location.search).get("fbclid");
+        document.cookie = `_fbc=fb.1.${Date.now()}.${fbclid}; path=/; SameSite=Lax`;
+    }
+})();
 </script>
 <!-- End Meta Pixel Code -->
 <script src="{% static 'js/fb-data.js' %}"></script>

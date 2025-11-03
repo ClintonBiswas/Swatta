@@ -135,7 +135,10 @@ document.addEventListener("click", function(event) {
 
     const { productId, productName, productPrice, quantity, size, color } = getProductData(addToCartBtn);
 
-    // Dispatch custom pixel event asynchronously
+    // ✅ Generate Event ID for CAPI + Pixel
+    const eventId = "evt_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+
+    // ✅ Send Pixel Browser Event
     setTimeout(() => {
         document.dispatchEvent(new CustomEvent("pixel:add_to_cart", {
             detail: {
@@ -143,19 +146,26 @@ document.addEventListener("click", function(event) {
                 name: productName,
                 price: productPrice,
                 quantity: quantity,
-                currency: "BDT"
+                currency: "BDT",
+                event_id: eventId  // ✅ Pass event ID to pixel trigger
             }
         }));
     }, 0);
 
-    // AJAX: Add to Cart
+    // ✅ Send event to backend for CAPI
     fetch("/add-to-cart/", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
             "X-CSRFToken": getCSRFToken(),
         },
-        body: JSON.stringify({ product_id: productId, quantity, size, color }),
+        body: JSON.stringify({
+            product_id: productId,
+            quantity,
+            size,
+            color,
+            event_id: eventId  // ✅ Send to Django
+        }),
     })
     .then(res => res.json())
     .then(data => {
@@ -169,6 +179,7 @@ document.addEventListener("click", function(event) {
     .catch(err => console.error("Add to Cart Error:", err));
 });
 
+
 // ============================
 // Buy Now - Event Delegation
 // ============================
@@ -179,37 +190,50 @@ document.addEventListener("click", function(event) {
 
     const { productId, productName, productPrice, quantity, size, color } = getProductData(buyNowBtn);
 
-    // Dispatch custom pixel events asynchronously
+    // ✅ Generate Event IDs
+    const addToCartEventId = "evt_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+    const checkoutEventId   = "evt_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+
+    // ✅ Pixel Events
     setTimeout(() => {
+        // AddToCart Pixel
         document.dispatchEvent(new CustomEvent("pixel:add_to_cart", {
             detail: {
                 id: productId,
                 name: productName,
                 price: productPrice,
                 quantity: quantity,
-                currency: "BDT"
+                currency: "BDT",
+                event_id: addToCartEventId
             }
         }));
 
+        // InitiateCheckout Pixel
         document.dispatchEvent(new CustomEvent("pixel:initiate_checkout", {
             detail: {
                 id: productId,
                 name: productName,
                 price: productPrice,
                 quantity: quantity,
-                currency: "BDT"
+                currency: "BDT",
+                event_id: checkoutEventId
             }
         }));
     }, 0);
 
-    // AJAX: Buy Now
+    // ✅ Send event IDs to backend
     fetch("/buy-now/", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
             "X-CSRFToken": getCSRFToken(),
         },
-        body: JSON.stringify({ product_id: productId, quantity, size, color }),
+        body: JSON.stringify({
+            product_id: productId,
+            quantity, size, color,
+            add_to_cart_event_id: addToCartEventId,
+            checkout_event_id: checkoutEventId
+        }),
     })
     .then(res => res.json())
     .then(data => {
@@ -221,7 +245,7 @@ document.addEventListener("click", function(event) {
     })
     .catch(err => console.error("Buy Now Error:", err));
 });
-//end buy now and pixel
+//end buy now pixel
 
     // Quantity Buttons
     document.querySelectorAll(".quantity-product-button").forEach((button) => {

@@ -464,6 +464,43 @@ function downloadPDF() {
     // Generate PDF
     html2pdf().from(element).set(opt).save();
 }
+
+
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    // This data comes from Django context passed to template
+    const purchaseData = {
+        event_id: "{{ event_id }}",
+        value: "{{ total_value }}",
+        currency: "BDT",
+        contents: [
+            {% for item in order_items %}
+            {
+                id: "{{ item.product.product_code }}",
+                quantity: "{{ item.quantity }}",
+                item_price: "{{ item.price }}"
+            },
+            {% endfor %}
+        ],
+        num_items: "{{ total_quantity }}"
+    };
+
+    // Trigger Facebook Purchase browser event
+    fbq('track', 'Purchase', {
+        content_ids: purchaseData.contents.map(x => x.id),
+        content_type: 'product',
+        value: parseFloat({{ total_value|floatformat:2 }}),
+        currency: 'BDT',
+        num_items: {{ total_quantity|int }},
+        event_id: "{{ event_id }}"
+    });
+
+
+    console.log("Browser Purchase event fired with ID:", purchaseData.event_id);
+});
+
+
     </script>
 {% endblock extra_js %}
     
