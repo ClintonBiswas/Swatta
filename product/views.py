@@ -1008,6 +1008,19 @@ def order_confirmation_view(request, order_id):
     fbc = [fb_cookies.get("_fbc")] if fb_cookies.get("_fbc") else []
     fbp = [fb_cookies.get("_fbp")] if fb_cookies.get("_fbp") else []
 
+    # Prepare contents for JS (Facebook pixel)
+    contents = [
+        {
+            "id": item.product.product_code,
+            "quantity": item.quantity,
+            "item_price": float(item.price)
+        } for item in order_items
+    ]
+    purchase_data = {
+        "contents": contents
+    }
+
+    # Trigger server-side FB event
     event_id = send_event(
         event_name="Purchase",
         user_data={
@@ -1023,13 +1036,7 @@ def order_confirmation_view(request, order_id):
             "currency": "BDT",
             "value": total_value,
             "num_items": total_quantity,
-            "contents": [
-                {
-                    "id": item.product.product_code,
-                    "quantity": item.quantity,
-                    "item_price": float(item.price)
-                } for item in order_items
-            ],
+            "contents": contents,
             "content_type": "product",
         }
     )
@@ -1040,10 +1047,12 @@ def order_confirmation_view(request, order_id):
         'order': order,
         'order_items': order_items_data,
         'total_quantity': total_quantity,
+        'total_value': total_value,
         'shipping_info': order.shipping_info,
         'event_id': event_id,
-        'total_value': total_value, 
+        'purchaseData': json.dumps(purchase_data),  # JSON for JS use
     }
+
     return render(request, 'product/order_confirmation.html', context)
 
 

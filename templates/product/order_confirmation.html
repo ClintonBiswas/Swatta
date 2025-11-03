@@ -487,15 +487,14 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
     // Trigger Facebook Purchase browser event
-    fbq('track', 'Purchase', {
-        content_ids: purchaseData.contents.map(x => x.id),
-        content_type: 'product',
-        value: parseFloat({{ total_value|floatformat:2 }}),
-        currency: 'BDT',
-        num_items: {{ total_quantity|int }},
-        event_id: "{{ event_id }}"
-    });
-
+        fbq('track', 'Purchase', {
+            content_ids: {{ purchaseData|safe }}.contents.map(x => x.id),
+            content_type: 'product',
+            value: parseFloat({{ total_value|floatformat:2 }}),
+            currency: 'USD',
+            num_items: {{ total_quantity }},
+            event_id: "{{ event_id }}"
+        });
 
     console.log("Browser Purchase event fired with ID:", purchaseData.event_id);
 });
