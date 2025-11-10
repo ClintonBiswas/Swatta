@@ -489,16 +489,11 @@ function vote(pollId) {
             option_ids: optionIds
         })
     })
-    .then(response => {
-        if (!response.ok) {
-            return response.json().then(err => { 
-                throw new Error(err.error || 'Voting failed. Please try again.'); 
-            });
-        }
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
-        // Hide form and show results
+        if (data.error) throw new Error(data.error);
+
+        // Always show results, hide form
         form.style.display = 'none';
         const resultsContainer = document.getElementById(`poll-results-${pollId}`);
         resultsContainer.style.display = 'block';
@@ -510,7 +505,7 @@ function vote(pollId) {
         document.getElementById(`poll-total-votes-${pollId}`).textContent = data.total_votes;
         document.getElementById(`total-votes-${pollId}`).textContent = data.total_votes;
 
-        // Handle promo code display
+        // Promo code display
         const promoContainer = document.getElementById(`promo-code-section-${pollId}`);
         if (data.promo_code && data.promo_message && data.discount) {
             const promoMessageEl = document.getElementById(`promo-message-${pollId}`);
@@ -523,20 +518,15 @@ function vote(pollId) {
             if (promoCodeEl) promoCodeEl.textContent = data.promo_code;
             if (promoDiscountEl) promoDiscountEl.textContent = data.discount;
             if (promoValidEl) promoValidEl.textContent = data.valid_until || '';
-            if (shopNowLink && data.shop_now_url) {
-                shopNowLink.href = data.shop_now_url;
-                shopNowLink.style.display = 'block';
-            }
+            if (shopNowLink && data.shop_now_url) shopNowLink.href = data.shop_now_url;
 
             promoContainer.style.display = 'block';
         } else {
             promoContainer.style.display = 'none';
         }
 
-        // Show appropriate message
-        if (data.already_voted) {
-            showMessage(pollId, data.message || 'You have already voted. Here are the current results:');
-        } else if (data.success) {
+        // Show success message
+        if (data.success) {
             showMessage(pollId, data.message || 'Thank you for voting!', false);
         }
 
@@ -548,29 +538,44 @@ function vote(pollId) {
             option_ids: optionIds,
             option_texts: Array.from(inputs).map(input => input.dataset.optionText || input.value),
             total_votes: data.total_votes,
+            content_type: "poll",
             user_status: "{{ request.user.is_authenticated|yesno:'logged_in,guest' }}"
         };
 
-        // Fire fbq directly
-        if (typeof fbq !== "undefined") {
-            fbq('trackCustom', 'PollVote', pollVoteDetail);
-            console.log('PollVote pixel fired:', pollVoteDetail);
-        }
+        (function(){
+            function getCookie(name) {
+                const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+                return match ? match[2] : null;
+            }
 
-        // Dispatch a centralized JS event (optional)
-        document.dispatchEvent(new CustomEvent('pixel:poll_vote', { detail: pollVoteDetail }));
+            // Ensure _fbc exists for FB tracking
+            if (!getCookie("_fbc") && window.location.search.includes("fbclid=")) {
+                const fbclid = new URLSearchParams(location.search).get("fbclid");
+                document.cookie = `_fbc=fb.1.${Date.now()}.${fbclid}; path=/; SameSite=Lax`;
+            }
+
+            const pollEventId = 'pollvote_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
+
+            if (typeof fbq !== "undefined") {
+                pollVoteDetail.eventID = pollEventId;
+                fbq('trackCustom', 'PollVote', pollVoteDetail, { eventID: pollEventId });
+                console.log('PollVote pixel fired:', pollVoteDetail, 'EventID:', pollEventId);
+            }
+
+            // Dispatch centralized JS event
+            pollVoteDetail.event_id = pollEventId;
+            document.dispatchEvent(new CustomEvent('pixel:poll_vote', { detail: pollVoteDetail }));
+        })();
 
     })
     .catch(error => {
         showMessage(pollId, error.message);
     })
     .finally(() => {
-        // Reset button state
         voteButton.disabled = false;
         voteButton.textContent = originalButtonText;
     });
 }
-
 
 // Update poll results with colorful bars
 function updatePollResults(pollId, results, totalVotes) {
@@ -608,4 +613,5 @@ function updatePollResults(pollId, results, totalVotes) {
     document.getElementById(`poll-total-votes-${pollId}`).textContent = totalVotes;
 }
 </script>
+
 {% endblock extra_js %}

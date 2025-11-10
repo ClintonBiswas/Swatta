@@ -36,9 +36,12 @@ class Poll(models.Model):
         return reverse('poll_detail', kwargs={'slug': self.slug})
 
     def update_total_votes(self):
-        # More efficient way to calculate total votes
-        self.total_votes = self.vote_set.count()
+        """
+        Update total_votes field with unique voters (user or session_key).
+        """
+        self.total_votes = Vote.objects.filter(poll=self).values('user', 'session_key').distinct().count()
         self.save()
+
 
 class PollOption(models.Model):
     poll = models.ForeignKey(Poll, related_name='options', on_delete=models.CASCADE)
@@ -50,13 +53,21 @@ class PollOption(models.Model):
     
     @property
     def vote_count(self):
+        """
+        Count the number of unique voters who voted for this option.
+        """
         return self.vote_set.count()
-    
+
     @property
     def percentage(self):
-        if self.poll.total_votes == 0:
+        """
+        Calculate the percentage based on total unique voters of the poll.
+        """
+        total_unique_voters = Vote.objects.filter(poll=self.poll).values('user', 'session_key').distinct().count()
+        if total_unique_voters == 0:
             return 0
-        return round((self.vote_count / self.poll.total_votes) * 100, 2)
+        return round((self.vote_count / total_unique_voters) * 100, 2)
+
 
 class Vote(models.Model):
     poll = models.ForeignKey(Poll, on_delete=models.CASCADE)

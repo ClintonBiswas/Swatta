@@ -189,22 +189,26 @@ def ProductDetails(request, product_slug):
     product_multiple_images = ProductImage.objects.filter(product=product).order_by('display_order')
 
     # ===== Server-Side ViewContent Pixel =====
+    # Always try to deduplicate with the same event_id as client-side pixel
 
-    # Get cookies
+    event_id = request.COOKIES.get("fb_event_id")  # shared with pixel.js
+
+    # --- Collect identifiers ---
     fbp = request.COOKIES.get("_fbp")
     fbc = request.COOKIES.get("_fbc") or request.GET.get("fbclid")
+
     user_data = {
         "client_ip_address": get_client_ip(request),
         "client_user_agent": request.META.get("HTTP_USER_AGENT"),
     }
 
-    # Add fbp / fbc if available
+    # --- Add fbp/fbc for event match quality ---
     if fbp:
-        user_data["fbp"] = fbp
+        user_data["fbp"] = [fbp]
     if fbc:
-        user_data["fbc"] = fbc
+        user_data["fbc"] = [fbc]
 
-    # Add hashed email / phone only if user is logged in
+    # --- Add email/phone/fullname if user is authenticated ---
     if request.user.is_authenticated:
         if getattr(request.user, "email", None):
             user_data["em"] = [request.user.email]
@@ -213,16 +217,20 @@ def ProductDetails(request, product_slug):
         if getattr(request.user, "fullname", None):
             user_data["fn"] = [request.user.fullname]
 
+    # --- Send ViewContent event ---
     send_event(
         event_name="ViewContent",
+        event_id=event_id,  # ✅ ensures deduplication with pixel
         user_data=user_data,
         custom_data={
             "content_ids": [product.product_code],
             "content_name": product.product_name,
             "currency": "BDT",
             "value": float(product.discounted_price()),
+            "content_type": "product",  # ✅ recommended by Meta
         }
     )
+
 
 
     # Initialize color_images dictionary
@@ -550,7 +558,7 @@ def buy_now(request):
                 size=size,
                 color=color
             )
-
+            # buy now pixel start
             # ✅ USER DATA
             user_em = [request.user.email] if request.user.is_authenticated and getattr(request.user, 'email', None) else []
             user_ph = [getattr(request.user, 'phone_number', '')] if request.user.is_authenticated else []
@@ -997,7 +1005,7 @@ def order_confirmation_view(request, order_id):
 
     total_quantity = sum(item.quantity for item in order_items)
     total_value = sum(float(item.price) * item.quantity for item in order_items)
-
+    # purchase
     # User data
     user_email = getattr(order.shipping_info, 'email', None)
     user_phone = getattr(order.shipping_info, 'phone', None)
