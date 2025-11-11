@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404
-from django.urls import reverse
+from django.urls import reverse, NoReverseMatch
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_protect
@@ -46,6 +46,14 @@ def ajax_vote(request):
 
         poll = get_object_or_404(Poll, id=poll_id, is_active=True)
 
+        # shop_now_url
+        shop_now_url = reverse('user:home')
+        if poll.product_category and poll.product_category.slug:
+            try:
+                shop_now_url = reverse('product:category-products', kwargs={'category_slug': poll.product_category.slug})
+            except NoReverseMatch:
+                shop_now_url = f'/category-products/{poll.product_category.slug}/'
+
         # --- Active promo code ---
         promo_code = PromoCode.objects.filter(
             is_active=True,
@@ -60,7 +68,7 @@ def ajax_vote(request):
                 'promo_message': f"Use code {promo_code.code} for {promo_code.get_discount_display()} off!",
                 'discount': promo_code.get_discount_display(),
                 'valid_until': promo_code.valid_to.strftime('%d %b %Y'),
-                'shop_now_url': reverse('user:home')
+                'shop_now_url': shop_now_url
             }
 
         # --- Normalize option_ids ---
@@ -108,6 +116,7 @@ def ajax_vote(request):
             user_ph = [getattr(request.user, 'phone_number', '')] if request.user.is_authenticated else []
 
             event_id = request.COOKIES.get("fb_event_id") or f"pollvote_{poll.id}_{int(time.time()*1000)}"
+            ip_address = get_client_ip(request)  # make sure you have this utility
 
             send_event(
                 event_name="PollVote",
@@ -125,10 +134,18 @@ def ajax_vote(request):
                     "option_ids": option_ids,
                     "option_texts": voted_options,
                     "total_votes": poll.total_votes,
-                },test_event_code="TEST72747"
+                    "content_type": "poll",
+                    "content_name": "Winter Collection Poll",     
+                    "content_ids": [f"poll_{poll.id}"],           
+                    "content_category": "Winter Collection",     
+                    "event_source_url": request.build_absolute_uri(), 
+                    "value": 1.0,                                 
+                    "currency": "BDT",                            
+                }
             )
         except Exception as e:
             logger.error(f"PollVote Pixel send error: {str(e)}")
+
 
         # --- Prepare results ---
         result_data = []

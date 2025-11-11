@@ -189,11 +189,9 @@ def ProductDetails(request, product_slug):
     product_multiple_images = ProductImage.objects.filter(product=product).order_by('display_order')
 
     # ===== Server-Side ViewContent Pixel =====
-    # Always try to deduplicate with the same event_id as client-side pixel
+    fb_event_id = f"viewcontent_{int(time.time() * 1000)}_{request.user.id if request.user.is_authenticated else 'guest'}"
+    event_id = request.COOKIES.get("fb_event_id") or fb_event_id
 
-    event_id = request.COOKIES.get("fb_event_id")  # shared with pixel.js
-
-    # --- Collect identifiers ---
     fbp = request.COOKIES.get("_fbp")
     fbc = request.COOKIES.get("_fbc") or request.GET.get("fbclid")
 
@@ -202,36 +200,39 @@ def ProductDetails(request, product_slug):
         "client_user_agent": request.META.get("HTTP_USER_AGENT"),
     }
 
-    # --- Add fbp/fbc for event match quality ---
+    # Add fbp/fbc for better matching
     if fbp:
         user_data["fbp"] = [fbp]
     if fbc:
         user_data["fbc"] = [fbc]
 
-    # --- Add email/phone/fullname if user is authenticated ---
+    # Add email/phone/external_id/fullname if user is authenticated
     if request.user.is_authenticated:
         if getattr(request.user, "email", None):
-            user_data["em"] = [request.user.email]
+            user_data["em"] = [request.user.email.lower().strip()]  # recommended to hash if possible
         if getattr(request.user, "phone_number", None):
-            user_data["ph"] = [request.user.phone_number]
+            user_data["ph"] = [request.user.phone_number.strip()]
         if getattr(request.user, "fullname", None):
-            user_data["fn"] = [request.user.fullname]
+            user_data["fn"] = [request.user.fullname.strip()]
+        user_data["external_id"] = [str(request.user.id)]  # optional but improves match
 
-    # --- Send ViewContent event ---
+    # Send ViewContent event
     send_event(
         event_name="ViewContent",
-        event_id=event_id,  # ✅ ensures deduplication with pixel
+        event_id=event_id,
         user_data=user_data,
         custom_data={
             "content_ids": [product.product_code],
             "content_name": product.product_name,
+            "content_type": "product",
             "currency": "BDT",
             "value": float(product.discounted_price()),
-            "content_type": "product",  # ✅ recommended by Meta
+            "content_category": product.product_category.title if hasattr(product, "category") else "Products",
+            "event_source_url": request.build_absolute_uri(),
+            "page_title": getattr(request, "title", "Product"),
+            "user_role": "logged_in" if request.user.is_authenticated else "guest",
         }
     )
-
-
 
     # Initialize color_images dictionary
     color_images = {}
@@ -324,7 +325,9 @@ def ProductDetails(request, product_slug):
         'how_to_order_id': how_to_order_id,
         'color_images': color_images,
         'first_color_id': first_color.id if first_color else None,
-        'reviews_page': reviews_page,  # Add paginated reviews
+        'reviews_page': reviews_page,
+        'CURRENT_USER_ROLE': "logged_in" if request.user.is_authenticated else "guest",
+        'event_id': event_id,
     }
     return render(request, 'product/product-details.html', context=context)
 
@@ -362,18 +365,19 @@ def add_to_cart(request):
             fbc = request.COOKIES.get("_fbc", "")
             fbp = request.COOKIES.get("_fbp", "")
 
-            user_em = [request.user.email] if request.user.is_authenticated and getattr(request.user, 'email', None) else []
-            user_ph = [getattr(request.user, 'phone_number', '')] if request.user.is_authenticated else []
-            user_fullname = [getattr(request.user, 'fullname', '')] if request.user.is_authenticated else []
+            user_em = [request.user.email.lower().strip()] if request.user.is_authenticated and getattr(request.user, 'email', None) else []
+            user_ph = [getattr(request.user, 'phone_number', '').strip()] if request.user.is_authenticated else []
+            user_fullname = [getattr(request.user, 'fullname', '').strip()] if request.user.is_authenticated else []
 
             user_data = {
                 "em": user_em,
                 "ph": user_ph,
                 "fn": user_fullname,
+                "external_id": [str(request.user.id)] if request.user.is_authenticated else [],
                 "client_ip_address": get_client_ip(request),
                 "client_user_agent": request.META.get("HTTP_USER_AGENT"),
-                "fbc": fbc,
-                "fbp": fbp,
+                "fbc": [fbc] if fbc else [],
+                "fbp": [fbp] if fbp else [],
             }
 
             event_id = send_event(
@@ -382,12 +386,17 @@ def add_to_cart(request):
                 custom_data={
                     "content_ids": [product.product_code],
                     "content_name": product.product_name,
+                    "content_type": "product",  # recommended
+                    "content_category": product.product_category.title if hasattr(product, "category") else "Products",
                     "currency": "BDT",
                     "value": float(product.discounted_price()) * quantity,
                     "quantity": quantity,
+                    "event_source_url": request.build_absolute_uri(),
+                    "page_title": getattr(request, "title", product.product_name),
+                    "user_role": "logged_in" if request.user.is_authenticated else "guest",
                 }
             )
-            # =====================================================
+
 
             return JsonResponse({
                 "status": "success",
@@ -558,48 +567,52 @@ def buy_now(request):
                 size=size,
                 color=color
             )
-            # buy now pixel start
+            # ===== Buy Now Pixel - CAPI =====
             # ✅ USER DATA
-            user_em = [request.user.email] if request.user.is_authenticated and getattr(request.user, 'email', None) else []
-            user_ph = [getattr(request.user, 'phone_number', '')] if request.user.is_authenticated else []
-            user_fullname = [getattr(request.user, 'fullname', '')] if request.user.is_authenticated else []
+            user_em = [request.user.email.lower().strip()] if request.user.is_authenticated and getattr(request.user, 'email', None) else []
+            user_ph = [getattr(request.user, 'phone_number', '').strip()] if request.user.is_authenticated else []
+            user_fullname = [getattr(request.user, 'fullname', '').strip()] if request.user.is_authenticated else []
 
             user_data = {
                 "em": user_em,
                 "ph": user_ph,
                 "fn": user_fullname,
+                "external_id": [str(request.user.id)] if request.user.is_authenticated else [],
                 "client_ip_address": get_client_ip(request),
                 "client_user_agent": request.META.get("HTTP_USER_AGENT"),
                 "fbc": [request.COOKIES.get("_fbc")] if request.COOKIES.get("_fbc") else [],
                 "fbp": [request.COOKIES.get("_fbp")] if request.COOKIES.get("_fbp") else [],
             }
 
-            # ✅ Send CAPI events linked with browser
+            custom_data_common = {
+                "content_ids": [product.product_code],
+                "content_name": product.product_name,
+                "content_type": "product",
+                "content_category": product.product_category.title if hasattr(product, "category") else "Products",
+                "currency": "BDT",
+                "value": float(product.discounted_price()) * quantity,
+                "quantity": quantity,
+                "event_source_url": request.build_absolute_uri(),
+                "page_title": getattr(request, "title", product.product_name),
+                "user_role": "logged_in" if request.user.is_authenticated else "guest",
+            }
+
+            # AddToCart CAPI
             send_event(
                 event_name="AddToCart",
                 event_id=add_event_id,
                 user_data=user_data,
-                custom_data={
-                    "content_ids": [product.product_code],
-                    "content_name": product.product_name,
-                    "currency": "BDT",
-                    "value": float(product.discounted_price()) * quantity,
-                    "quantity": quantity,
-                }
+                custom_data=custom_data_common
             )
 
+            # InitiateCheckout CAPI
             send_event(
                 event_name="InitiateCheckout",
                 event_id=checkout_event_id,
                 user_data=user_data,
-                custom_data={
-                    "content_ids": [product.product_code],
-                    "content_name": product.product_name,
-                    "currency": "BDT",
-                    "value": float(product.discounted_price()) * quantity,
-                    "quantity": quantity,
-                }
+                custom_data=custom_data_common
             )
+
 
             return JsonResponse({
                 "status": "success",
@@ -613,6 +626,13 @@ def buy_now(request):
 
 
 def checkout_view(request):
+    import time, random
+    from django.core.signing import Signer
+    from django.contrib import messages
+    from django.shortcuts import redirect, render
+    from django.core.validators import validate_email
+    from django.core.exceptions import ValidationError
+
     # 1. Cart Handling
     if request.user.is_authenticated:
         cart = MyCart.objects.get_or_create(user=request.user)[0]
@@ -640,9 +660,13 @@ def checkout_view(request):
                 is_active=True
             ).order_by('-created_at').first()
 
+    # ===== Define default event_id for both GET and POST =====
+    fb_event_id = f"checkout_{int(time.time() * 1000)}_{request.user.id if request.user.is_authenticated else 'guest'}"
+    event_id = request.COOKIES.get("fb_event_id") or fb_event_id
+
     # 3. Form Submission Handling
     if request.method == 'POST':
-        # Check if it's an AJAX validation request
+        # AJAX phone validation
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 'phone' in request.POST:
             phone = normalize_phone(request.POST.get("phone", ""))
             response_data = {'valid': True, 'message': ''}
@@ -747,6 +771,7 @@ def checkout_view(request):
         # Send verification code
         if not send_verification_code(request, phone, form_data['email'], verification_code):
             return redirect('product:checkout')
+
         # 🔹 SEND FACEBOOK EVENT (InitiateCheckout)
         try:
             user_fullname = [getattr(request.user, 'fullname', '')] if request.user.is_authenticated else []
@@ -755,8 +780,11 @@ def checkout_view(request):
                 "em": [form_data.get('email')] if form_data.get('email') else [],
                 "ph": [phone] if phone else [],
                 "fn": user_fullname,
+                "external_id": [str(request.user.id)] if request.user.is_authenticated else [],
                 "client_user_agent": request.META.get("HTTP_USER_AGENT"),
-                "client_ip_address": get_client_ip(request),  # Use helper to get real IP
+                "client_ip_address": get_client_ip(request),
+                "fbc": [request.COOKIES.get("_fbc")] if request.COOKIES.get("_fbc") else [],
+                "fbp": [request.COOKIES.get("_fbp")] if request.COOKIES.get("_fbp") else [],
             }
 
             user_data = normalize_user_data(raw_user_data)
@@ -765,25 +793,37 @@ def checkout_view(request):
                 "currency": "BDT",
                 "value": sum(item.total_price() for item in cart_items),
                 "contents": [
-                    {"id": str(item.product.id), "quantity": item.quantity}
+                    {
+                        "id": str(item.product.id),
+                        "quantity": item.quantity,
+                        "content_name": item.product.product_name,
+                        "content_category": item.product.product_category.title if hasattr(item.product, "category") else "Products",
+                    }
                     for item in cart_items
                 ],
                 "content_type": "product",
+                "event_source_url": request.build_absolute_uri(),
+                "page_title": getattr(request, "title", "Cart"),
+                "user_role": "logged_in" if request.user.is_authenticated else "guest",
             }
 
-            event_id = send_event(
+            sent_event_id = send_event(
                 event_name="InitiateCheckout",
                 user_data=user_data,
                 custom_data=custom_data
             )
+            if sent_event_id:
+                event_id = sent_event_id
+
             logger.info(f"InitiateCheckout Pixel Event sent with event_id={event_id}")
 
         except Exception as e:
             logger.error(f"Pixel event send error: {str(e)}")
+            # event_id remains from top-level default
+
         # Clear messages and set cookie
         list(messages.get_messages(request))
         response = redirect('product:verify_email')
-        
         if not request.user.is_authenticated:
             response.set_cookie(
                 'guest_phone',
@@ -795,7 +835,7 @@ def checkout_view(request):
             )
         return response
 
-    # Prepare form data
+    # ===== Prepare form data for GET =====
     initial_data = {}
     if shipping_info:
         initial_data = {
@@ -809,7 +849,10 @@ def checkout_view(request):
         }
 
     cart_items_data = []
+    total_quantity = 0
     for item in cart_items:
+        qty = item.quantity or 1
+        total_quantity += qty
         # Get the correct image based on selected color
         if item.color:
             color_image = item.product.images.filter(color__name__iexact=item.color).first()
@@ -828,13 +871,15 @@ def checkout_view(request):
             "product_color": item.color,
         })
 
-
     context = {
         "cart_items": cart_items_data,
         "cart_total": sum(item.total_price() for item in cart_items),
         "shipping_form": ShippingInformationForm(initial=initial_data),
+        "cart_total_quantity": total_quantity,
+        'event_id': event_id,  # ✅ Always defined
     }
     return render(request, "product/checkout.html", context)
+
 
 def send_verification_code(request, phone, email, verification_code):
     """Trigger Celery task to send verification code"""
@@ -992,6 +1037,8 @@ def order_confirmation_view(request, order_id):
     order_items = OrderItem.objects.filter(order=order).select_related('product')
 
     order_items_data = []
+    contents = []
+
     for item in order_items:
         order_items_data.append({
             'product': item.product,
@@ -1003,38 +1050,35 @@ def order_confirmation_view(request, order_id):
             'total': item.price * item.quantity
         })
 
+        contents.append({
+            "id": item.product.product_code,
+            "quantity": item.quantity,
+            "item_price": float(item.price),
+            "content_name": item.product.product_name,
+            "content_category": item.product.category.name if hasattr(item.product, "category") else "Products",
+            "tags": ",".join([tag.name for tag in item.product.tags.all()]) if hasattr(item.product, "tags") else "",
+        })
+
     total_quantity = sum(item.quantity for item in order_items)
     total_value = sum(float(item.price) * item.quantity for item in order_items)
-    # purchase
+
     # User data
     user_email = getattr(order.shipping_info, 'email', None)
     user_phone = getattr(order.shipping_info, 'phone', None)
     user_fullname = [getattr(order.shipping_info, 'fullname', '')] if getattr(order.shipping_info, 'fullname', None) else []
 
-    # Cookies for better matching
     fb_cookies = request.COOKIES
     fbc = [fb_cookies.get("_fbc")] if fb_cookies.get("_fbc") else []
     fbp = [fb_cookies.get("_fbp")] if fb_cookies.get("_fbp") else []
 
-    # Prepare contents for JS (Facebook pixel)
-    contents = [
-        {
-            "id": item.product.product_code,
-            "quantity": item.quantity,
-            "item_price": float(item.price)
-        } for item in order_items
-    ]
-    purchase_data = {
-        "contents": contents
-    }
-
-    # Trigger server-side FB event
+    # Server-side CAPI event
     event_id = send_event(
         event_name="Purchase",
         user_data={
-            "em": [user_email] if user_email else [],
-            "ph": [user_phone] if user_phone else [],
+            "em": [user_email.lower().strip()] if user_email else [],
+            "ph": [user_phone.strip()] if user_phone else [],
             "fn": user_fullname,
+            "external_id": [str(order.user.id)] if getattr(order, 'user', None) else [],
             "client_user_agent": request.META.get("HTTP_USER_AGENT"),
             "client_ip_address": get_client_ip(request),
             "fbc": fbc,
@@ -1046,9 +1090,11 @@ def order_confirmation_view(request, order_id):
             "num_items": total_quantity,
             "contents": contents,
             "content_type": "product",
+            "event_source_url": request.build_absolute_uri(),
+            "page_title": getattr(request, "title", "Order Confirmation"),
+            "user_role": "logged_in" if getattr(order, 'user', None) else "guest",
         }
     )
-
     logger.info(f"Purchase Pixel Event sent with event_id={event_id}")
 
     context = {
@@ -1058,10 +1104,11 @@ def order_confirmation_view(request, order_id):
         'total_value': total_value,
         'shipping_info': order.shipping_info,
         'event_id': event_id,
-        'purchaseData': json.dumps(purchase_data),  # JSON for JS use
+        'purchaseData': json.dumps({"contents": contents}),  # JSON for JS
     }
 
     return render(request, 'product/order_confirmation.html', context)
+
 
 
 

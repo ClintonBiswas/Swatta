@@ -193,6 +193,7 @@
             {% endif %}
         </ul>
     </div>
+    {% block bottom_navigation %}
         <!-- bottom navbar -->
         <div class="bottom-header">
             <div class="bottom-icons">
@@ -220,6 +221,7 @@
             </div>
             <div class="overlay"></div>
         </div>
+        {% endblock bottom_navigation %}
 
     <!-- cart-sidebar-menu -->
     {% include 'product/cart.html' %}
@@ -251,7 +253,9 @@
       {% endblock content %}
 
     <!-- Footer Section -->
+    {% block footer_section %}
       {% include 'footer.html' %}
+    {% endblock footer_section %}
     
     <!-- Bootstrap Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>

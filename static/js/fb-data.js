@@ -1,175 +1,149 @@
 (function () {
-  // -----------------------------
-  // ✅ Helper Functions
-  // -----------------------------
+  // 🔹 Utility helpers
   function parsePrice(v) {
     var n = parseFloat(v);
     return isFinite(n) ? n : 0;
   }
-
   function parseIntSafe(v) {
     var n = parseInt(v);
     return isFinite(n) ? n : 0;
   }
-
   function getCookie(name) {
-    const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
-    return match ? match[2] : null;
+    var m = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return m ? m[2] : null;
   }
-
-  function setCookie(name, value, days = 7) {
-    const expires = new Date(Date.now() + days * 864e5).toUTCString();
-    document.cookie = `${name}=${value}; expires=${expires}; path=/; SameSite=Lax`;
-  }
-
   function setEventIdCookie(eventId) {
-    setCookie("_event_id", eventId);
+    document.cookie = `fb_event_id=${eventId}; path=/; SameSite=Lax`;
   }
 
-  // -----------------------------
-  // ✅ Handle fbc (Click ID) cookie for deduplication
-  // -----------------------------
-  if (!getCookie("_fbc") && window.location.search.includes("fbclid=")) {
-    const fbclid = new URLSearchParams(location.search).get("fbclid");
-    setCookie("_fbc", `fb.1.${Date.now()}.${fbclid}`);
-  }
-
-  // -----------------------------
-  // ✅ Fire fbq event (with optional deduplication ID)
-  // -----------------------------
+  // 🔹 Fire Facebook Pixel Event safely
   function fireBrowserEvent(eventName, payload, eventID) {
     if (typeof fbq === "undefined") {
-      console.warn("FBX Warning: fbq not loaded yet", eventName, payload);
+      console.warn("⚠️ FBX: fbq not loaded for", eventName);
       return;
     }
     try {
-      if (eventID) {
-        fbq("track", eventName, payload, { eventID: eventID });
-      } else {
-        fbq("track", eventName, payload);
-      }
-      console.log(
-        "%cFBX fired:",
-        "color:green;font-weight:bold",
-        eventName,
-        payload,
-        eventID ? "EventID: " + eventID : ""
-      );
-    } catch (e) {
-      console.error("FBX error:", e);
+      if (eventID) fbq("track", eventName, payload, { eventID: eventID });
+      else fbq("track", eventName, payload);
+      console.log(`✅ FBX fired: ${eventName}`, payload, eventID ? `EventID: ${eventID}` : "");
+    } catch (err) {
+      console.error("❌ FBX fire error:", err);
     }
   }
 
-  // -----------------------------
-  // ✅ DOM Ready: Fire Events
-  // -----------------------------
-  document.addEventListener("DOMContentLoaded", function () {
-    console.log("%cFBX: DOM Loaded - scanning .fb-data elements", "color:blue;font-weight:bold");
+  // 🔹 Generate unique event IDs
+  function createEventId(prefix) {
+    return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+  }
 
-    // 🔹 Fire PageView (always)
-    const pageEventId = "pageview_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
+  // 🔹 Always fire a PageView event
+  (function firePageView() {
+    const pageEventId = createEventId("pageview");
     setEventIdCookie(pageEventId);
     fireBrowserEvent(
       "PageView",
       {
         page_path: window.location.pathname,
         page_title: document.title,
+        value: 1.0,
+        currency: "BDT",
+        content_ids: [window.location.pathname],
+        content_category: "PageView",
+        event_source_url: window.location.href,
       },
       pageEventId
     );
+  })();
 
-    // 🔹 Scan for .fb-data elements
-    var fbElements = document.querySelectorAll(".fb-data");
-    fbElements.forEach(function (fbData) {
-      var t = fbData.dataset.type;
-      var eventId =
+  // 🔹 When DOM ready, scan all .fb-data elements
+  document.addEventListener("DOMContentLoaded", function () {
+    console.log("🔍 FBX: DOM Loaded - scanning .fb-data elements");
+
+    document.querySelectorAll(".fb-data").forEach(function (fbData) {
+      const type = fbData.dataset.type;
+      const eventId =
         fbData.dataset.eventId ||
-        t + "_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
-      setEventIdCookie(eventId);
+        getCookie("fb_event_id") ||
+        createEventId("evt");
+      const userRole =
+        fbData.dataset.userRole || window.CURRENT_USER_ROLE || "guest";
 
-      console.log("%cFBX found .fb-data element:", "color:purple", t, fbData.dataset);
-
-      if (t === "product") {
-        // ViewContent Event
-        fireBrowserEvent(
-          "ViewContent",
-          {
-            content_ids: [fbData.dataset.id],
-            content_name: fbData.dataset.name || "",
-            content_type: "product",
-            currency: "BDT",
-            value: parsePrice(fbData.dataset.price || 0),
-          },
-          eventId
-        );
+      if (type === "product") {
+        const payload = {
+          content_ids: [fbData.dataset.id],
+          content_name: fbData.dataset.name || "",
+          content_type: "product",
+          content_category: fbData.dataset.category || "Products",
+          currency: "BDT",
+          value: parsePrice(fbData.dataset.price || 0),
+          event_source_url: window.location.href,
+          page_title: document.title,
+          user_role: userRole,
+        };
+        fireBrowserEvent("ViewContent", payload, eventId);
       }
 
-      if (t === "cart") {
-        // InitiateCheckout Event
-        fireBrowserEvent(
-          "InitiateCheckout",
-          {
-            content_ids: JSON.parse(fbData.dataset.contentIds || "[]"),
-            content_name: fbData.dataset.name || "Cart",
-            content_type: "product",
-            currency: "BDT",
-            value: parsePrice(fbData.dataset.value || 0),
-          },
-          eventId
-        );
+      if (type === "cart") {
+        let contentIds = [];
+        let contentCategories = [];
+        try {
+          contentIds = JSON.parse(fbData.dataset.contentIds || "[]");
+        } catch (e) {}
+        try {
+          contentCategories = JSON.parse(fbData.dataset.contentCategories || "[]");
+        } catch (e) {}
+
+        const payload = {
+          content_ids: contentIds,
+          content_name: fbData.dataset.name || "Cart",
+          content_type: "product",
+          content_category:"Products",
+          currency: "BDT",
+          value: parsePrice(fbData.dataset.value || 0),
+          quantity: parseIntSafe(fbData.dataset.quantity || 0),
+          event_source_url: window.location.href,
+          page_title: document.title,
+          user_role: userRole,
+        };
+        fireBrowserEvent("InitiateCheckout", payload, eventId);
       }
     });
   });
 
-  // -----------------------------
-  // ✅ Listen for custom JS events (AddToCart, Checkout, Purchase)
-  // -----------------------------
-  document.addEventListener("pixel:add_to_cart", function (e) {
-    var d = e.detail || {};
-    fireBrowserEvent(
-      "AddToCart",
-      {
-        content_ids: [d.id],
-        content_name: d.name || "",
-        content_type: "product",
-        currency: "BDT",
-        value: parsePrice(d.price) * parseIntSafe(d.quantity),
-        quantity: parseIntSafe(d.quantity),
-      },
-      d.event_id
-    );
-  });
+  // 🔹 Listen for custom pixel events
+  function handleCustomEvent(eventName, detail, prefix) {
+    const d = detail || {};
+    const eventId =
+      d.event_id ||
+      getCookie("fb_event_id") ||
+      createEventId(prefix || "custom");
 
-  document.addEventListener("pixel:initiate_checkout", function (e) {
-    var d = e.detail || {};
-    fireBrowserEvent(
-      "InitiateCheckout",
-      {
-        content_ids: d.ids || (d.id ? [d.id] : []),
-        content_name: d.name || "Cart Checkout",
-        content_type: "product",
-        currency: "BDT",
-        value: parsePrice(d.value || (d.price * (d.quantity || 1))),
-        quantity: parseIntSafe(d.quantity) || undefined,
-      },
-      d.event_id
-    );
-  });
-
-  document.addEventListener("pixel:purchase", function (e) {
-    var d = e.detail || {};
-    var ids = (d.contents || []).map(function (it) {
-      return it.id;
-    });
-    var purchasePayload = {
-      content_ids: ids,
-      content_name: d.order_name || "Order",
+    const payload = {
+      content_ids: d.ids || (d.id ? [d.id] : []),
+      content_name: d.name || "Unknown",
       content_type: "product",
-      value: parsePrice(d.value),
-      currency: "BDT",
+      content_category: d.category || "Products",
+      currency: d.currency || "BDT",
+      value: parsePrice(
+        d.value || (d.price || 0) * (d.quantity || 1) || 0
+      ),
+      quantity: parseIntSafe(d.quantity || d.num_items || 1),
+      event_source_url: window.location.href,
+      page_title: document.title,
+      user_role: d.user_role || window.CURRENT_USER_ROLE || "guest",
     };
-    var numItems = parseIntSafe(d.num_items || 0);
-    if (numItems > 0) purchasePayload.num_items = numItems;
-    fireBrowserEvent("Purchase", purchasePayload, d.event_id);
-  });
+
+    fireBrowserEvent(eventName, payload, eventId);
+  }
+
+  // 🔹 Custom event listeners
+  document.addEventListener("pixel:add_to_cart", (e) =>
+    handleCustomEvent("AddToCart", e.detail, "addtocart")
+  );
+  document.addEventListener("pixel:initiate_checkout", (e) =>
+    handleCustomEvent("InitiateCheckout", e.detail, "init_checkout")
+  );
+  document.addEventListener("pixel:purchase", (e) =>
+    handleCustomEvent("Purchase", e.detail, "purchase")
+  );
 })();

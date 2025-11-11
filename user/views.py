@@ -36,20 +36,14 @@ def HomeView(request):
     ).select_related('product_category')
     
     blogs = MyBlog.objects.all()
-    # -----------------------------
-    # SERVER-SIDE PIXEL: PageView
-    # -----------------------------
-    user_em = [request.user.email] if request.user.is_authenticated and getattr(request.user, 'email', None) else []
-    user_ph = [getattr(request.user, 'phone_number', None)] if request.user.is_authenticated and getattr(request.user, 'phone_number', None) else []
-
     event_id = request.COOKIES.get("fb_event_id")
 
     send_event(
         event_name="PageView",
-        event_id=event_id,  # ✅ dedup key
+        event_id=event_id,  # ✅ dedup key (now valid)
         user_data={
-            "em": user_em,
-            "ph": user_ph,
+            "em": [request.user.email] if request.user.is_authenticated and request.user.email else [],
+            "ph": [getattr(request.user, 'phone_number', None)] if request.user.is_authenticated and getattr(request.user, 'phone_number', None) else [],
             "client_ip_address": get_client_ip(request),
             "client_user_agent": request.META.get("HTTP_USER_AGENT"),
             "fbc": [request.COOKIES.get("_fbc")] if request.COOKIES.get("_fbc") else [],
@@ -58,8 +52,14 @@ def HomeView(request):
         custom_data={
             "page_path": request.path,
             "page_title": getattr(request, 'title', 'Home'),
+            "value": 1.0,
+            "currency": "BDT",
+            "content_ids": [request.path],
+            "content_category": "PageView",
+            "event_source_url": request.build_absolute_uri(),
         }
     )
+
 
     context = {
         'banners': banner,

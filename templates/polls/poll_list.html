@@ -23,21 +23,117 @@
     transition: transform 0.2s, box-shadow 0.2s;
 }
 
+.poll-card.scroll-mode {
+    display: flex;
+    flex-direction: column;
+    height: 75vh; /* Fixed height for mobile */
+    max-height: 600px; /* Maximum height for larger screens */
+}
+
 .poll-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
 }
 
+/* Scrollable header section */
 .poll-header {
     padding: 20px;
     border-bottom: 1px solid #f3f4f6;
 }
 
+.poll-card.scroll-mode .poll-header {
+    flex-shrink: 0; /* Prevent header from shrinking in scroll mode */
+}
+
+/* Scrollable options section */
+.poll-options {
+    padding: 15px 20px;
+}
+
+.poll-card.scroll-mode .poll-options {
+    flex: 1; /* Take remaining space */
+    overflow-y: auto; /* Enable scrolling */
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    display: flex;
+    flex-direction: column;
+}
+
+/* Form takes full height in scroll mode */
+.poll-card.scroll-mode .poll-options form {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* Options container scrolls in scroll mode */
+.poll-card.scroll-mode .poll-options .space-y-3 {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 10px;
+}
+
+/* Visible scrollbar */
+.poll-card.scroll-mode .poll-options .space-y-3::-webkit-scrollbar {
+    width: 8px;
+}
+
+.poll-card.scroll-mode .poll-options .space-y-3::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.poll-card.scroll-mode .poll-options .space-y-3::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.poll-card.scroll-mode .poll-options .space-y-3::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Vote button container - FIXED FOR MOBILE VISIBILITY */
+.vote-button-container {
+    background: white;
+    padding: 20px;
+    z-index: 10;
+    margin: 0 -20px -15px -20px; /* Extend to edges */
+}
+
+.poll-card.scroll-mode .vote-button-container {
+    position: sticky;
+    bottom: 0;
+    margin-top: auto;
+    border-top: 1px solid #f0f0f0;
+}
+
+/* Regular mode (no scroll) vote button spacing */
+.poll-card:not(.scroll-mode) .vote-button-container {
+    margin-top: 20px;
+    margin-bottom: 0;
+}
+
 .poll-question {
-    font-size: 1.3rem;
+    font-size: 1rem;
     font-weight: 600;
     color: #111827;
-    margin-bottom: 5px;
+    margin-bottom: 10px;
+    padding: 10px 0 10px 20px;
+    position: relative;
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border-radius: 8px;
+}
+
+.poll-question::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 6px;
+    height: 60%;
+    background: linear-gradient(135deg, #8a0000, #d40000);
+    border-radius: 0 3px 3px 0;
 }
 
 .poll-description {
@@ -64,10 +160,6 @@
 }
 
 /* Poll options styling */
-.poll-options {
-    padding: 15px 20px;
-}
-
 .poll-option {
     display: flex;
     align-items: center;
@@ -119,36 +211,161 @@
     aspect-ratio: 1/1;
 }
 
-/* Vote button */
+/* Vote Button */
 .vote-button {
     display: block;
     width: 100%;
-    padding: 14px;
-    background-color: #3b82f6;
+    padding: 16px;
+    background: linear-gradient(135deg, #8a0000 0%, #d40000 100%);
     color: white;
     border: none;
-    border-radius: 8px;
-    font-weight: 600;
+    border-radius: 12px;
+    font-weight: 700;
     cursor: pointer;
-    transition: background-color 0.2s;
-    margin-top: 15px;
-    font-size: 1rem;
+    font-size: 1.1rem;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    box-shadow: 
+        0 6px 20px rgba(138, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    animation: subtlePulse 3s ease-in-out infinite;
 }
 
+/* Animated border - always running */
+.vote-button::before {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    right: -3px;
+    bottom: -3px;
+    background: linear-gradient(45deg, 
+        #8a0000, #ff4444, #8a0000, #ff6b6b, 
+        #8a0000, #ff4444, #8a0000, #ff6b6b);
+    background-size: 400% 400%;
+    border-radius: 15px;
+    z-index: -2;
+    animation: borderGlow 2s linear infinite;
+}
+
+/* Inner background */
+.vote-button::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    right: 2px;
+    bottom: 2px;
+    background: linear-gradient(135deg, #8a0000 0%, #d40000 100%);
+    border-radius: 10px;
+    z-index: -1;
+}
+
+/* Continuous pulse glow */
+@keyframes subtlePulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 
+            0 6px 20px rgba(138, 0, 0, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    50% {
+        transform: scale(1.01);
+        box-shadow: 
+            0 8px 25px rgba(138, 0, 0, 0.6),
+            inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+}
+
+/* Continuous border animation */
+@keyframes borderGlow {
+    0% {
+        background-position: 0% 0%;
+        opacity: 0.8;
+    }
+    25% {
+        background-position: 100% 0%;
+        opacity: 1;
+    }
+    50% {
+        background-position: 100% 100%;
+        opacity: 0.8;
+    }
+    75% {
+        background-position: 0% 100%;
+        opacity: 1;
+    }
+    100% {
+        background-position: 0% 0%;
+        opacity: 0.8;
+    }
+}
+
+/* Shimmer text effect - always running */
+.vote-button span {
+    position: relative;
+    display: inline-block;
+    background: linear-gradient(90deg, 
+        #ffffff, #ffcccc, #ffffff, #ffcccc);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: textShimmer 2.5s ease-in-out infinite;
+}
+
+@keyframes textShimmer {
+    0%, 100% {
+        background-position: -200% 0%;
+    }
+    50% {
+        background-position: 200% 0%;
+    }
+}
+
+/* Hover state - enhances existing animations */
 .vote-button:hover {
-    background-color: #2563eb;
+    animation-duration: 1.5s;
 }
 
+.vote-button:hover::before {
+    animation-duration: 1s;
+    filter: brightness(1.2);
+}
+
+.vote-button:hover span {
+    animation-duration: 1s;
+}
+
+/* Disabled state - stops all animations */
 .vote-button:disabled {
-    background-color: #9ca3af;
+    background: #6b7280;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 2px 8px rgba(107, 114, 128, 0.3);
+    animation: none;
 }
 
-/* Results section */
+.vote-button:disabled::before,
+.vote-button:disabled::after {
+    display: none;
+}
+
+.vote-button:disabled span {
+    background: #9ca3af;
+    -webkit-text-fill-color: #9ca3af;
+    animation: none;
+}
+
+/* Results section - SHOW BOTH RESULTS AND PROMO */
 .poll-results {
     padding: 20px;
     border-top: 1px solid #f3f4f6;
-    display: none;
+    display: none; /* Initially hidden */
 }
 
 .results-title {
@@ -204,24 +421,57 @@
 }
 
 .poll-heading {
-    font-size: 28px;
-    margin-bottom: 30px;
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 15px;
     text-align: center;
-    color: #111827;
+    color: #1a202c;
+    background: linear-gradient(135deg, #8a0000 0%, #b30000 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 10px;
+    position: relative;
+    letter-spacing: -0.5px;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.poll-heading::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80px;
+    height: 4px;
+    background: linear-gradient(90deg, #8a0000, #b30000);
+    border-radius: 2px;
+}
+
+/* Promo Code Section - MAIN FOCUS AFTER VOTING */
+.promo-code-section {
+    padding: 20px;
+    border-top: 1px solid #f3f4f6;
+    display: none; /* Initially hidden, shown by JS after voting */
 }
 
 .promo-card {
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     border-radius: 10px;
     padding: 20px;
-    margin-top: 20px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 2px solid #8a0000;
 }
 
 .promo-header h3 {
     font-size: 1.2rem;
-    color: var(--main-color);
+    color: #8a0000;
     margin-bottom: 15px;
+    text-align: center;
+}
+
+.promo-body {
     text-align: center;
 }
 
@@ -233,6 +483,7 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 10px;
+    border: 2px dashed #8a0000;
 }
 
 .promo-code-text {
@@ -242,7 +493,7 @@
 }
 
 .promo-discount {
-    background: var(--main-color);
+    background: #8a0000;
     color: white;
     font-weight: 600;
     padding: 5px 10px;
@@ -260,13 +511,23 @@
 .shop-now-button {
     display: block;
     text-align: center;
-    background: var(--main-color);
+    background: #8a0000;
     color: white;
-    padding: 10px;
-    border-radius: 5px;
+    padding: 12px 20px;
+    border-radius: 8px;
     text-decoration: none;
     font-weight: bold;
     transition: background 0.3s;
+    margin-top: 10px;
+    font-size: 1rem;
+}
+
+.shop-now-button:hover {
+    background: #a00000;
+    color: white;
+    text-decoration: none;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(138, 0, 0, 0.3);
 }
 
 .success-message {
@@ -277,12 +538,36 @@
     margin-bottom: 15px;
 }
 
+/* Mobile Responsive */
 @media (max-width: 992px) {
     .poll-container {
         margin-top: 80px;
     }
     .poll-heading {
-        font-size: 22px !important;
+        font-size: 16px !important;
+    }
+    .poll-question{
+        font-size: 14px;
+        padding: 10px 0 10px 15px;
+    }
+}
+
+@media (max-width: 768px) {
+    .poll-card.scroll-mode {
+        height: 80vh; /* Taller on mobile */
+        max-height: none; /* Remove max-height restriction */
+    }
+    
+    .poll-header,
+    .poll-options {
+        padding: 12px;
+    }
+    
+    .vote-button-container {
+        padding: 15px;
+        margin: 0 -12px -12px -12px; /* Extend to edges */
+        background: white;
+        border-top: 1px solid #f0f0f0;
     }
 }
 
@@ -293,12 +578,16 @@
     
     .poll-card {
         border-radius: 10px;
+        margin-bottom: 20px;
+    }
+    
+    .poll-card.scroll-mode {
+        height: 85vh; /* Even taller on very small screens */
     }
     
     .poll-header,
-    .poll-options,
-    .poll-results {
-        padding: 15px;
+    .poll-options {
+        padding: 10px;
     }
     
     .poll-option {
@@ -308,16 +597,25 @@
     .option-image {
         max-height: 150px;
     }
+    
+    .vote-button-container {
+        padding: 15px;
+        margin: 0 -10px -10px -10px;
+    }
+    
+    .promo-code-section {
+        padding: 15px;
+    }
 }
 </style>
 {% endblock extra_css %}
 
 {% block content %}
 <div class="poll-container">
-    <h1 class="font-bold text-center mb-8 poll-heading mt-3">ভোট দিন, জিতে নিন বিশেষ অফার!</h1>
+    <h1 class="poll-heading">ভোট দিন, জিতে নিন বিশেষ অফার!</h1>
     
     {% for poll in polls %}
-    <div class="poll-card" id="poll-{{ poll.id }}">
+    <div class="poll-card scroll-mode" id="poll-{{ poll.id }}">
         <!-- Error message container -->
         <div id="poll-error-{{ poll.id }}" class="poll-error"></div>
         
@@ -368,13 +666,15 @@
                         {% endif %}
                     </div>
                 </label>
-
                     {% endfor %}
                 </div>
                 
-                <button type="button" onclick="vote({{ poll.id }})" class="vote-button">
-                    Vote Now
-                </button>
+                <!-- Vote Button Container - FIXED FOR MOBILE -->
+                <div class="vote-button-container">
+                    <button type="button" onclick="vote({{ poll.id }})" class="vote-button">
+                        <span>Vote Now</span>
+                    </button>
+                </div>
             </form>
         </div>
         
@@ -387,8 +687,8 @@
             </div>
         </div>
         
-        <!-- Promo Code Section (Initially Hidden) -->
-        <div id="promo-code-section-{{ poll.id }}" style="display: none;">
+        <!-- Promo Code Section (Initially Hidden) - MAIN FOCUS -->
+        <div id="promo-code-section-{{ poll.id }}" class="promo-code-section">
             <div class="promo-card">
                 <div class="promo-header">
                     <h3 id="promo-message-{{ poll.id }}">Special Offer for Voters!</h3>
@@ -409,23 +709,64 @@
         </div>
     </div>
     {% endfor %}
-    </div>
-    <div class="custom-container">
-        <div class="category-header">
-            <h5 class="category-title">Related Products</h5>
-        </div>
-        <div id="main-product-card">
-        {% for product in products %}
-            {% include 'withoutsliderproduct_card.html' %}   
-        {% endfor %}
-        </div>
-    </div>
+</div>
 
+{% block bottom_navigation %}
+{% endblock bottom_navigation %}
 
 {% endblock content %}
 
+{% block footer_section %}
+{% endblock footer_section %}
+
 {% block extra_js %}
 <script>
+function afterVoting(pollId) {
+    const pollCard = document.getElementById('poll-' + pollId);
+    
+    // Remove scroll mode to show full content
+    pollCard.classList.remove('scroll-mode');
+    
+    // Show BOTH results and promo sections
+    document.getElementById('poll-results-' + pollId).style.display = 'block';
+    document.getElementById('promo-code-section-' + pollId).style.display = 'block';
+    
+    // Hide the voting form
+    document.getElementById('poll-form-' + pollId).style.display = 'none';
+    
+    // Auto scroll to promo section after a short delay
+    setTimeout(() => {
+        const promoSection = document.getElementById('promo-code-section-' + pollId);
+        promoSection.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' // This focuses on the middle of the promo section
+        });
+        
+        // Add highlight effect to draw attention
+        promoSection.style.animation = 'highlightFlash 2s ease-in-out';
+    }, 800);
+}
+
+// Add highlight animation for promo section
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes highlightFlash {
+        0% { 
+            background-color: transparent; 
+            transform: scale(1);
+        }
+        50% { 
+            background-color: rgba(138, 0, 0, 0.1); 
+            transform: scale(1.02);
+        }
+        100% { 
+            background-color: transparent; 
+            transform: scale(1);
+        }
+    }
+`;
+document.head.appendChild(style);
+
 // Utility function to get CSRF token
 function getCookie(name) {
     let cookieValue = null;
@@ -474,9 +815,9 @@ function vote(pollId) {
 
     // Show loading state
     const voteButton = form.querySelector('.vote-button');
-    const originalButtonText = voteButton.textContent;
+    const originalButtonText = voteButton.innerHTML;
     voteButton.disabled = true;
-    voteButton.innerHTML = '<span class="spinner"></span> Voting...';
+    voteButton.innerHTML = '<span>Voting...</span>';
 
     fetch("{% url 'ajax_vote' %}", {
         method: "POST",
@@ -493,10 +834,8 @@ function vote(pollId) {
     .then(data => {
         if (data.error) throw new Error(data.error);
 
-        // Always show results, hide form
-        form.style.display = 'none';
-        const resultsContainer = document.getElementById(`poll-results-${pollId}`);
-        resultsContainer.style.display = 'block';
+        // Call afterVoting function to handle layout changes and focus on promo
+        afterVoting(pollId);
 
         // Update poll results
         updatePollResults(pollId, data.results, data.total_votes);
@@ -505,7 +844,7 @@ function vote(pollId) {
         document.getElementById(`poll-total-votes-${pollId}`).textContent = data.total_votes;
         document.getElementById(`total-votes-${pollId}`).textContent = data.total_votes;
 
-        // Promo code display
+        // Promo code display - MAIN FOCUS
         const promoContainer = document.getElementById(`promo-code-section-${pollId}`);
         if (data.promo_code && data.promo_message && data.discount) {
             const promoMessageEl = document.getElementById(`promo-message-${pollId}`);
@@ -521,13 +860,11 @@ function vote(pollId) {
             if (shopNowLink && data.shop_now_url) shopNowLink.href = data.shop_now_url;
 
             promoContainer.style.display = 'block';
-        } else {
-            promoContainer.style.display = 'none';
         }
 
         // Show success message
         if (data.success) {
-            showMessage(pollId, data.message || 'Thank you for voting!', false);
+            showMessage(pollId, data.message || 'Thank you for voting! Check your special offer below!', false);
         }
 
         // -------------------------------
@@ -539,6 +876,12 @@ function vote(pollId) {
             option_texts: Array.from(inputs).map(input => input.dataset.optionText || input.value),
             total_votes: data.total_votes,
             content_type: "poll",
+            content_name: "Winter Collection Poll",              
+            content_ids: [`poll_${pollId}`],                    
+            content_category: "Winter Collection",              
+            event_source_url: window.location.href,           
+            value: 1.0,                                         
+            currency: "BDT",                                    
             user_status: "{{ request.user.is_authenticated|yesno:'logged_in,guest' }}"
         };
 
@@ -573,7 +916,7 @@ function vote(pollId) {
     })
     .finally(() => {
         voteButton.disabled = false;
-        voteButton.textContent = originalButtonText;
+        voteButton.innerHTML = originalButtonText;
     });
 }
 
@@ -613,5 +956,4 @@ function updatePollResults(pollId, results, totalVotes) {
     document.getElementById(`poll-total-votes-${pollId}`).textContent = totalVotes;
 }
 </script>
-
 {% endblock extra_js %}

@@ -110,7 +110,11 @@
                 data-type="cart"
                 data-name="Cart Checkout"
                 data-value="{{ cart_total }}"
-                data-content-ids='[{% for it in cart_items %}"{{ it.product_id }}"{% if not forloop.last %}, {% endif %}{% endfor %}]'>
+                data-quantity="{{ cart_total_quantity }}"
+                data-content-ids='[{% for it in cart_items %}"{{ it.product_id }}"{% if not forloop.last %}, {% endif %}{% endfor %}]'
+                data-content-categories='[{% for it in cart_items %}"{{ it.category|escapejs }}"{% if not forloop.last %}, {% endif %}{% endfor %}]'
+                data-event-id="{{ event_id }}"
+                data-user-role="{{ CURRENT_USER_ROLE }}">
             </div>
 
                 {% for item in cart_items %}
