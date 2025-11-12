@@ -1,47 +1,82 @@
 {% load static %}
 <script>
-  // expose login state to JS
+  // 🔹 Expose user role to JS (used by fb-data.js)
   window.CURRENT_USER_ROLE = "{{ request.user.is_authenticated|yesno:'logged_in,guest' }}";
 </script>
 
 <script>
-!function(f,b,e,v,n,t,s){
-  if(f.fbq)return;n=f.fbq=function(){ n.callMethod ?
-    n.callMethod.apply(n,arguments) : n.queue.push(arguments) };
-  if(!f._fbq)f._fbq=n;
-  n.push=n; n.loaded=!0; n.version='2.0';
-  n.queue=[]; t=b.createElement(e); t.async=!0;
-  t.src=v; s=b.getElementsByTagName(e)[0];
-  s.parentNode.insertBefore(t,s);
-}(window, document,'script','https://connect.facebook.net/en_US/fbevents.js');
+  // -------------------------------
+  //  Meta Pixel Initialization
+  // -------------------------------
+  !function(f,b,e,v,n,t,s){
+    if(f.fbq)return;n=f.fbq=function(){
+      n.callMethod ? n.callMethod.apply(n,arguments) : n.queue.push(arguments)
+    };
+    if(!f._fbq)f._fbq=n;
+    n.push=n; n.loaded=!0; n.version='2.0';
+    n.queue=[];
+    t=b.createElement(e); t.async=!0;
+    t.src=v; s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s);
+  }(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
 
-fbq('init', '{{ FACEBOOK_PIXEL_ID }}');
+  fbq('init', '{{ FACEBOOK_PIXEL_ID }}');
 
-// --- Create unique event IDs ---
-function createEventId(prefix) {
-  return prefix + '_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
-}
-
-// --- PageView Event ---
-const pageviewEventId = createEventId('pageview');
-fbq('track', 'PageView', {
-  value: 1.0,
-  currency: 'BDT',
-  content_ids: [window.location.pathname],
-  content_category: 'PageView',
-  event_source_url: window.location.href
-}, { eventID: pageviewEventId });
-
-// --- Store event id in cookie for server dedup ---
-document.cookie = `fb_event_id=${pageviewEventId}; path=/; SameSite=Lax`;
-
-// --- Ensure _fbc cookie exists if fbclid present ---
-(function() {
-  const fbclid = new URLSearchParams(location.search).get("fbclid");
-  if (fbclid && !document.cookie.includes("_fbc=")) {
-    document.cookie = `_fbc=fb.1.${Date.now()}.${fbclid}; path=/; SameSite=Lax`;
+  // -------------------------------
+  //  Helper functions
+  // -------------------------------
+  function createEventId(prefix) {
+    return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
   }
-})();
+
+  function setCookie(name, value) {
+    document.cookie = `${name}=${value}; path=/; SameSite=Lax`;
+  }
+
+  function getCookie(name) {
+    const m = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return m ? m[2] : null;
+  }
+
+  // -------------------------------
+  //  Ensure _fbc and _fbp exist (for all users)
+  // -------------------------------
+  (function ensureFbCookies() {
+    const fbclid = new URLSearchParams(location.search).get("fbclid");
+    const hasFbc = document.cookie.includes("_fbc=");
+    const hasFbp = document.cookie.includes("_fbp=");
+
+    // ✅ _fbc cookie
+    if (fbclid) {
+      setCookie("_fbc", `fb.1.${Date.now()}.${fbclid}`);
+    } else if (!hasFbc) {
+      const random = Math.floor(Math.random() * 1e9);
+      setCookie("_fbc", `fb.1.${Date.now()}.${random}`);
+    }
+
+    // ✅ _fbp cookie
+    if (!hasFbp) {
+      const random = Math.floor(Math.random() * 1e9);
+      setCookie("_fbp", `fb.1.${Date.now()}.${random}`);
+    }
+  })();
+
+  // -------------------------------
+  //  Fire PageView (Browser + Server dedup)
+  // -------------------------------
+  const pageviewEventId = createEventId('pageview');
+  setCookie("fb_event_id", pageviewEventId);
+
+  fbq('track', 'PageView', {
+    value: 1.0,
+    currency: 'BDT',
+    content_ids: [window.location.pathname],
+    content_category: 'PageView',
+    event_source_url: window.location.href
+  }, { eventID: pageviewEventId });
+
+  console.log("✅ PageView fired with EventID:", pageviewEventId);
 </script>
 
+<!-- 🔹 Load fb-data logic for product/cart/purchase events -->
 <script src="{% static 'js/fb-data.js' %}"></script>

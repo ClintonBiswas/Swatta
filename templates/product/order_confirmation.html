@@ -315,8 +315,10 @@
             data-value="{{ total_value }}"
             data-num-items="{{ total_quantity }}"
             data-contents='[{% for it in order_items %}{"id":"{{ it.product.product_code }}","quantity":{{ it.quantity }}}{% if not forloop.last %},{% endif %}{% endfor %}]'
-            >
+            data-event-id="{{ event_id }}"
+            data-user-role="{{ request.user.is_authenticated|yesno:'logged_in,guest' }}">
         </div>
+
 
         <div class="row">
             <div class="col-md-6 mb-4">
@@ -465,32 +467,33 @@ function downloadPDF() {
     html2pdf().from(element).set(opt).save();
 }
 
-
-
 document.addEventListener("DOMContentLoaded", function () {
-    const purchaseData = {{ purchaseData|safe }};
-    const eventId = "{{ event_id }}";
-    const totalValue = parseFloat("{{ total_value|floatformat:2 }}");
-    const totalQuantity = parseInt("{{ total_quantity }}");
+    const purchaseData = JSON.parse('{{ purchaseData|escapejs }}');
+    const totalValue = parseFloat({{ total_value|floatformat:2 }}) || 0;
+    const totalQuantity = parseInt({{ total_quantity }}) || 0;
+    const eventId = '{{ event_id }}'; // Server CAPI event_id for deduplication
 
-    fbq('track', 'Purchase', {
-        content_ids: purchaseData.contents.map(x => x.id),
-        content_name: purchaseData.contents.map(x => x.content_name).join(", "),
-        content_type: 'product',
-        content_category: purchaseData.contents.map(x => x.content_category).join(", "),
-        value: totalValue,
-        currency: 'BDT',
-        num_items: totalQuantity,
-        event_source_url: window.location.href,
-        page_title: document.title,
-        user_role: "{{ request.user.is_authenticated|yesno:'logged_in,guest' }}",
-        tags: purchaseData.contents.map(x => x.tags).join(", "),
-        event_id: eventId
-    });
+    purchaseData.contents.forEach(c => c.item_price = parseFloat(c.item_price) || 0);
 
-    console.log("Browser Purchase event fired with ID:", eventId);
+    if (typeof fbq !== "undefined") {
+        fbq('track', 'Purchase', {
+            content_ids: purchaseData.contents.map(x => x.id),
+            content_name: purchaseData.contents.map(x => x.content_name).join(", "),
+            content_type: 'product',
+            content_category: purchaseData.contents.map(x => x.content_category).join(", "),
+            value: totalValue,
+            currency: 'BDT',
+            num_items: totalQuantity,
+            event_source_url: window.location.href,
+            page_title: document.title,
+            user_role: "{{ request.user.is_authenticated|yesno:'logged_in,guest' }}",
+        }, { eventID: eventId });
+
+        console.log("✅ Browser Purchase event fired with EventID:", eventId);
+    } else {
+        console.warn("⚠️ fbq not loaded yet!");
+    }
 });
-
 
 
     </script>

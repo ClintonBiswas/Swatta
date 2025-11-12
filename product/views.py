@@ -3,7 +3,7 @@ from .models import OurProduct, ProductImage, MyCart, CartItem, ShippingInformat
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .forms import ProductReviewForm, ShippingInformationForm, ContactWithUsForm, ScheduledMessageForm
-import json, random, time, re, logging, traceback
+import json, random, time, re, logging, traceback, hashlib, uuid
 from django.contrib import messages
 from django.db.models import Q
 from django.views.decorators.http import require_POST, require_GET
@@ -25,8 +25,7 @@ from django.conf import settings
 from .utils import normalize_phone, get_guest_phone_from_cookie
 from django.template.loader import render_to_string
 from user.utils import get_popular_products
-from .utils import send_event
-from .utils import normalize_user_data
+from .utils import send_event, normalize_user_data
 from pool.utils import get_client_ip
 
 logger = logging.getLogger(__name__)
@@ -188,10 +187,10 @@ def ProductDetails(request, product_slug):
     first_color = product.product_colors.first()
     product_multiple_images = ProductImage.objects.filter(product=product).order_by('display_order')
 
-    # ===== Server-Side ViewContent Pixel =====
-    fb_event_id = f"viewcontent_{int(time.time() * 1000)}_{request.user.id if request.user.is_authenticated else 'guest'}"
-    event_id = request.COOKIES.get("fb_event_id") or fb_event_id
-
+    # -------------------------------
+    # Server-side ViewContent Pixel
+    # -------------------------------
+    fb_event_id = request.COOKIES.get("fb_event_id") or f"viewcontent_{int(time.time() * 1000)}"
     fbp = request.COOKIES.get("_fbp")
     fbc = request.COOKIES.get("_fbc") or request.GET.get("fbclid")
 
@@ -200,39 +199,45 @@ def ProductDetails(request, product_slug):
         "client_user_agent": request.META.get("HTTP_USER_AGENT"),
     }
 
-    # Add fbp/fbc for better matching
+    # ✅ Include cookies for all users (guest or logged-in)
     if fbp:
         user_data["fbp"] = [fbp]
     if fbc:
         user_data["fbc"] = [fbc]
 
-    # Add email/phone/external_id/fullname if user is authenticated
+    # ✅ Include more info for logged-in users
     if request.user.is_authenticated:
         if getattr(request.user, "email", None):
-            user_data["em"] = [request.user.email.lower().strip()]  # recommended to hash if possible
+            user_data["em"] = [request.user.email.lower().strip()]
         if getattr(request.user, "phone_number", None):
             user_data["ph"] = [request.user.phone_number.strip()]
         if getattr(request.user, "fullname", None):
             user_data["fn"] = [request.user.fullname.strip()]
-        user_data["external_id"] = [str(request.user.id)]  # optional but improves match
+        user_data["external_id"] = [str(request.user.id)]
 
+    # ✅ Prepare custom data payload
+    custom_data = {
+        "content_ids": [product.product_code],
+        "content_name": product.product_name,
+        "content_type": "product",
+        "currency": "BDT",
+        "value": float(product.discounted_price()),
+        "content_category": getattr(product, "category", None) or "Products",
+        "event_source_url": request.build_absolute_uri(),
+        "page_title": getattr(request, "title", "Product"),
+        "user_role": "logged_in" if request.user.is_authenticated else "guest",
+    }
+
+    # -------------------------------
     # Send ViewContent event
+    # -------------------------------
     send_event(
         event_name="ViewContent",
-        event_id=event_id,
+        event_id=fb_event_id,
         user_data=user_data,
-        custom_data={
-            "content_ids": [product.product_code],
-            "content_name": product.product_name,
-            "content_type": "product",
-            "currency": "BDT",
-            "value": float(product.discounted_price()),
-            "content_category": product.product_category.title if hasattr(product, "category") else "Products",
-            "event_source_url": request.build_absolute_uri(),
-            "page_title": getattr(request, "title", "Product"),
-            "user_role": "logged_in" if request.user.is_authenticated else "guest",
-        }
+        custom_data=custom_data
     )
+
 
     # Initialize color_images dictionary
     color_images = {}
@@ -327,7 +332,7 @@ def ProductDetails(request, product_slug):
         'first_color_id': first_color.id if first_color else None,
         'reviews_page': reviews_page,
         'CURRENT_USER_ROLE': "logged_in" if request.user.is_authenticated else "guest",
-        'event_id': event_id,
+        'event_id': fb_event_id,
     }
     return render(request, 'product/product-details.html', context=context)
 
@@ -387,7 +392,7 @@ def add_to_cart(request):
                     "content_ids": [product.product_code],
                     "content_name": product.product_name,
                     "content_type": "product",  # recommended
-                    "content_category": product.product_category.title if hasattr(product, "category") else "Products",
+                    "content_category": getattr(product, "product_category", None) and product.product_category.title or "Products",
                     "currency": "BDT",
                     "value": float(product.discounted_price()) * quantity,
                     "quantity": quantity,
@@ -588,7 +593,7 @@ def buy_now(request):
                 "content_ids": [product.product_code],
                 "content_name": product.product_name,
                 "content_type": "product",
-                "content_category": product.product_category.title if hasattr(product, "category") else "Products",
+                "content_category": getattr(product, "product_category", None) and product.product_category.title or "Products",
                 "currency": "BDT",
                 "value": float(product.discounted_price()) * quantity,
                 "quantity": quantity,
@@ -624,16 +629,10 @@ def buy_now(request):
 
     return JsonResponse({"status": "error", "message": "Invalid request"}, status=400)
 
-
 def checkout_view(request):
-    import time, random
-    from django.core.signing import Signer
-    from django.contrib import messages
-    from django.shortcuts import redirect, render
-    from django.core.validators import validate_email
-    from django.core.exceptions import ValidationError
-
+    # --------------------------
     # 1. Cart Handling
+    # --------------------------
     if request.user.is_authenticated:
         cart = MyCart.objects.get_or_create(user=request.user)[0]
     else:
@@ -644,12 +643,13 @@ def checkout_view(request):
     if not cart_items.exists():
         return redirect('user:home')
 
+    # --------------------------
     # 2. Shipping Info Retrieval
+    # --------------------------
     shipping_info = None
     if request.user.is_authenticated:
         shipping_info = ShippingInformation.objects.filter(
-            user=request.user,
-            is_active=True
+            user=request.user, is_active=True
         ).order_by('-created_at').first()
     else:
         guest_phone = get_guest_phone_from_cookie(request)
@@ -660,38 +660,39 @@ def checkout_view(request):
                 is_active=True
             ).order_by('-created_at').first()
 
-    # ===== Define default event_id for both GET and POST =====
+    # --------------------------
+    # 3. Default FB Event ID
+    # --------------------------
     fb_event_id = f"checkout_{int(time.time() * 1000)}_{request.user.id if request.user.is_authenticated else 'guest'}"
     event_id = request.COOKIES.get("fb_event_id") or fb_event_id
 
-    # 3. Form Submission Handling
+    # --------------------------
+    # 4. Handle POST
+    # --------------------------
     if request.method == 'POST':
-        # AJAX phone validation
+        # ----- AJAX phone validation -----
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 'phone' in request.POST:
             phone = normalize_phone(request.POST.get("phone", ""))
             response_data = {'valid': True, 'message': ''}
-            
+
             if not phone or len(phone) != 11:
-                response_data = {
-                    'valid': False, 
-                    'message': 'Valid 11-digit phone number is required.'
-                }
-            else:
-                valid_operator_codes = ('013', '014', '015', '016', '017', '018', '019')
-                if not phone.startswith(valid_operator_codes):
-                    response_data = {
-                        'valid': False, 
-                        'message': 'Invalid phone number. Must start with 013-019.'
-                    }
-            
+                response_data = {'valid': False, 'message': 'Valid 11-digit phone number is required.'}
+            elif not phone.startswith(('013','014','015','016','017','018','019')):
+                response_data = {'valid': False, 'message': 'Invalid phone number. Must start with 013-019.'}
+
             return JsonResponse(response_data)
-        
-        # Regular form submission handling
+
+        # ----- Normal form submission -----
         phone = normalize_phone(request.POST.get("phone", ""))
         if not phone or len(phone) != 11:
             messages.error(request, 'Valid 11-digit phone number is required.')
             return redirect('product:checkout')
 
+        # Delivery location & cost
+        delivery_location = request.POST.get("delivery_location", "outside_dhaka")
+        delivery_cost_value = Decimal('70') if delivery_location == "inside_dhaka" else Decimal('130')
+
+        # Form data
         form_data = {
             'full_name': request.POST.get("full_name", "").strip(),
             'email': request.POST.get("email", "").strip(),
@@ -699,25 +700,21 @@ def checkout_view(request):
             'city': request.POST.get("city", "Dhaka").strip(),
             'address': request.POST.get("address", "").strip(),
             'special_note': request.POST.get("special_note", "").strip(),
-            'delivery_location': (
-                "inside_dhaka" if request.POST.get("delivery_location") == "70" 
-                else "outside_dhaka"
-            ),
+            'delivery_location': delivery_location,
         }
 
-        # Validation
+        # Email validation
         try:
             validate_email(form_data['email'])
         except ValidationError:
             messages.error(request, "Invalid email address.")
             return redirect('product:checkout')
 
-        valid_operator_codes = ('013', '014', '015', '016', '017', '018', '019')
-        if not phone.startswith(valid_operator_codes):
+        if not phone.startswith(('013','014','015','016','017','018','019')):
             messages.error(request, 'Invalid phone number. Must start with 013-019.')
             return redirect('product:checkout')
 
-        # Handle shipping info creation/update
+        # Update or create shipping info
         try:
             if request.user.is_authenticated:
                 shipping_info, created = ShippingInformation.objects.update_or_create(
@@ -727,11 +724,12 @@ def checkout_view(request):
                 )
             else:
                 shipping_info, created = ShippingInformation.objects.update_or_create(
-                    phone=phone,
                     user=None,
+                    phone=phone,
                     defaults={**form_data, 'is_active': True}
                 )
-                
+
+            # Deactivate older shipping infos
             ShippingInformation.objects.filter(
                 user=request.user if request.user.is_authenticated else None,
                 phone=phone
@@ -742,7 +740,7 @@ def checkout_view(request):
             logger.error(f"Shipping info save error: {str(e)}")
             return redirect('product:checkout')
 
-        # Create temporary order for verification
+        # ----- Order creation -----
         verification_code = str(random.randint(100000, 999999))
         try:
             order = Order.objects.create(
@@ -750,14 +748,14 @@ def checkout_view(request):
                 verification_code=verification_code,
                 user=request.user if request.user.is_authenticated else None,
                 session_key=request.session.session_key if not request.user.is_authenticated else None,
-                delivery_cost=shipping_info.get_delivery_cost
+                delivery_cost=delivery_cost_value
             )
         except Exception as e:
             messages.error(request, "Order creation failed. Please try again.")
             logger.error(f"Order creation error: {str(e)}")
             return redirect('product:checkout')
 
-        # Verification Setup
+        # Store session for verification
         request.session.update({
             'verification_code': verification_code,
             'order_id': order.id,
@@ -772,13 +770,12 @@ def checkout_view(request):
         if not send_verification_code(request, phone, form_data['email'], verification_code):
             return redirect('product:checkout')
 
-        # 🔹 SEND FACEBOOK EVENT (InitiateCheckout)
+        # Facebook Pixel InitiateCheckout
         try:
             user_fullname = [getattr(request.user, 'fullname', '')] if request.user.is_authenticated else []
-
             raw_user_data = {
                 "em": [form_data.get('email')] if form_data.get('email') else [],
-                "ph": [phone] if phone else [],
+                "ph": [phone],
                 "fn": user_fullname,
                 "external_id": [str(request.user.id)] if request.user.is_authenticated else [],
                 "client_user_agent": request.META.get("HTTP_USER_AGENT"),
@@ -786,7 +783,7 @@ def checkout_view(request):
                 "fbc": [request.COOKIES.get("_fbc")] if request.COOKIES.get("_fbc") else [],
                 "fbp": [request.COOKIES.get("_fbp")] if request.COOKIES.get("_fbp") else [],
             }
-
+            raw_user_data = {k:v for k,v in raw_user_data.items() if v}
             user_data = normalize_user_data(raw_user_data)
 
             custom_data = {
@@ -807,21 +804,14 @@ def checkout_view(request):
                 "user_role": "logged_in" if request.user.is_authenticated else "guest",
             }
 
-            sent_event_id = send_event(
-                event_name="InitiateCheckout",
-                user_data=user_data,
-                custom_data=custom_data
-            )
+            sent_event_id = send_event("InitiateCheckout", user_data, custom_data)
             if sent_event_id:
                 event_id = sent_event_id
-
             logger.info(f"InitiateCheckout Pixel Event sent with event_id={event_id}")
-
         except Exception as e:
             logger.error(f"Pixel event send error: {str(e)}")
-            # event_id remains from top-level default
 
-        # Clear messages and set cookie
+        # Clear messages & set guest cookie
         list(messages.get_messages(request))
         response = redirect('product:verify_email')
         if not request.user.is_authenticated:
@@ -835,7 +825,9 @@ def checkout_view(request):
             )
         return response
 
-    # ===== Prepare form data for GET =====
+    # --------------------------
+    # 5. Prepare form data for GET
+    # --------------------------
     initial_data = {}
     if shipping_info:
         initial_data = {
@@ -848,17 +840,16 @@ def checkout_view(request):
             'delivery_location': shipping_info.delivery_location,
         }
 
+    # Prepare cart items for display
     cart_items_data = []
     total_quantity = 0
     for item in cart_items:
         qty = item.quantity or 1
         total_quantity += qty
-        # Get the correct image based on selected color
+        product_image = item.product.product_image
         if item.color:
             color_image = item.product.images.filter(color__name__iexact=item.color).first()
-            product_image = color_image.image if color_image else item.product.product_image
-        else:
-            product_image = item.product.product_image
+            product_image = color_image.image if color_image else product_image
 
         cart_items_data.append({
             "product_image": product_image,
@@ -876,8 +867,9 @@ def checkout_view(request):
         "cart_total": sum(item.total_price() for item in cart_items),
         "shipping_form": ShippingInformationForm(initial=initial_data),
         "cart_total_quantity": total_quantity,
-        'event_id': event_id,  # ✅ Always defined
+        'event_id': event_id,
     }
+
     return render(request, "product/checkout.html", context)
 
 
@@ -1032,6 +1024,11 @@ def clear_verification_session(request):
     request.session.modified = True
 
 
+def sha256_hash(value):
+    if not value:
+        return None
+    return hashlib.sha256(str(value).strip().lower().encode()).hexdigest()
+
 def order_confirmation_view(request, order_id):
     order = get_object_or_404(Order, order_id=order_id)
     order_items = OrderItem.objects.filter(order=order).select_related('product')
@@ -1040,76 +1037,87 @@ def order_confirmation_view(request, order_id):
     contents = []
 
     for item in order_items:
+        price = float(item.price)
+        total = price * item.quantity
+
         order_items_data.append({
             'product': item.product,
             'quantity': item.quantity,
-            'price': item.price,
+            'price': price,
             'size': item.size,
             'color': item.color,
             'image': item.display_image,
-            'total': item.price * item.quantity
+            'total': total
         })
 
         contents.append({
-            "id": item.product.product_code,
+            "id": str(item.product.product_code)[:100],
             "quantity": item.quantity,
-            "item_price": float(item.price),
-            "content_name": item.product.product_name,
-            "content_category": item.product.category.name if hasattr(item.product, "category") else "Products",
-            "tags": ",".join([tag.name for tag in item.product.tags.all()]) if hasattr(item.product, "tags") else "",
+            "item_price": price,
+            "content_name": item.product.product_name[:100],  # truncate to 100 chars
+            "content_category": getattr(item.product.product_category, 'title', 'Products')[:100],
         })
 
     total_quantity = sum(item.quantity for item in order_items)
-    total_value = sum(float(item.price) * item.quantity for item in order_items)
+    total_value = float(sum(item.price * item.quantity for item in order_items))
 
-    # User data
-    user_email = getattr(order.shipping_info, 'email', None)
-    user_phone = getattr(order.shipping_info, 'phone', None)
-    user_fullname = [getattr(order.shipping_info, 'fullname', '')] if getattr(order.shipping_info, 'fullname', None) else []
+    shipping_info = getattr(order, "shipping_info", None)
+    user_email = getattr(shipping_info, 'email', None)
+    user_phone = getattr(shipping_info, 'phone', None)
+    user_fullname = getattr(shipping_info, 'fullname', None)
 
-    fb_cookies = request.COOKIES
-    fbc = [fb_cookies.get("_fbc")] if fb_cookies.get("_fbc") else []
-    fbp = [fb_cookies.get("_fbp")] if fb_cookies.get("_fbp") else []
+    fbc = request.COOKIES.get("_fbc")
+    fbp = request.COOKIES.get("_fbp")
 
-    # Server-side CAPI event
-    event_id = send_event(
-        event_name="Purchase",
-        user_data={
-            "em": [user_email.lower().strip()] if user_email else [],
-            "ph": [user_phone.strip()] if user_phone else [],
-            "fn": user_fullname,
-            "external_id": [str(order.user.id)] if getattr(order, 'user', None) else [],
-            "client_user_agent": request.META.get("HTTP_USER_AGENT"),
-            "client_ip_address": get_client_ip(request),
-            "fbc": fbc,
-            "fbp": fbp,
-        },
-        custom_data={
-            "currency": "BDT",
-            "value": total_value,
-            "num_items": total_quantity,
-            "contents": contents,
-            "content_type": "product",
-            "event_source_url": request.build_absolute_uri(),
-            "page_title": getattr(request, "title", "Order Confirmation"),
-            "user_role": "logged_in" if getattr(order, 'user', None) else "guest",
-        }
-    )
-    logger.info(f"Purchase Pixel Event sent with event_id={event_id}")
+    # Prepare user_data
+    user_data = {}
+    if user_email: user_data["em"] = [sha256_hash(user_email)]
+    if user_phone: user_data["ph"] = [sha256_hash(user_phone)]
+    if user_fullname: user_data["fn"] = [sha256_hash(user_fullname)]
+    if getattr(order, 'user', None): user_data["external_id"] = [str(order.user.id)]
+    user_data["client_user_agent"] = request.META.get("HTTP_USER_AGENT")
+    user_data["client_ip_address"] = get_client_ip(request)
+    if fbc: user_data["fbc"] = [fbc]
+    if fbp: user_data["fbp"] = [fbp]
 
+    # Generate unique event_id (like PageView/ViewContent)
+    event_id = f"purchase_{int(time.time())}_{uuid.uuid4().hex[:8]}"
+
+    # Custom data
+    custom_data = {
+        "currency": "BDT",
+        "value": total_value,
+        "num_items": total_quantity,
+        "contents": contents,
+        "content_type": "product",
+        "event_source_url": request.build_absolute_uri(),
+        "page_title": "Order Confirmation",
+        "user_role": "logged_in" if getattr(order, 'user', None) else "guest",
+    }
+
+    # Send Purchase event to FB CAPI
+    try:
+        send_event(
+            event_name="Purchase",
+            user_data=user_data,
+            custom_data=custom_data,
+            event_id=event_id
+        )
+    except Exception as e:
+        print(f"❌ Purchase Pixel event error: {str(e)}")
+
+    # Context for template / JS
     context = {
         'order': order,
         'order_items': order_items_data,
         'total_quantity': total_quantity,
         'total_value': total_value,
-        'shipping_info': order.shipping_info,
+        'shipping_info': shipping_info,
         'event_id': event_id,
-        'purchaseData': json.dumps({"contents": contents}),  # JSON for JS
+        'purchaseData': json.dumps({"contents": contents}, default=str),
     }
 
     return render(request, 'product/order_confirmation.html', context)
-
-
 
 
 @require_GET

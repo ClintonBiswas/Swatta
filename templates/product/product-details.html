@@ -230,7 +230,7 @@
      data-id="{{ products.product_code }}"
      data-name="{{ products.product_name|escapejs }}"
      data-price="{{ products.discounted_price }}"
-     data-category="{{ products.product_category.title }}"
+     data-category="{{ products.product_category.title|default:'Products' }}"
      data-event-id="{{ event_id }}"
      data-user-role="{{ CURRENT_USER_ROLE }}">
 </div>

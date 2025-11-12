@@ -10,6 +10,7 @@
     max-width: 800px;
     margin: 0 auto;
     padding: 20px;
+    padding-bottom: 100px; /* Space for fixed vote button */
 }
 
 /* Poll card styling */
@@ -23,13 +24,6 @@
     transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.poll-card.scroll-mode {
-    display: flex;
-    flex-direction: column;
-    height: 75vh; /* Fixed height for mobile */
-    max-height: 600px; /* Maximum height for larger screens */
-}
-
 .poll-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
@@ -39,77 +33,6 @@
 .poll-header {
     padding: 20px;
     border-bottom: 1px solid #f3f4f6;
-}
-
-.poll-card.scroll-mode .poll-header {
-    flex-shrink: 0; /* Prevent header from shrinking in scroll mode */
-}
-
-/* Scrollable options section */
-.poll-options {
-    padding: 15px 20px;
-}
-
-.poll-card.scroll-mode .poll-options {
-    flex: 1; /* Take remaining space */
-    overflow-y: auto; /* Enable scrolling */
-    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-    display: flex;
-    flex-direction: column;
-}
-
-/* Form takes full height in scroll mode */
-.poll-card.scroll-mode .poll-options form {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-}
-
-/* Options container scrolls in scroll mode */
-.poll-card.scroll-mode .poll-options .space-y-3 {
-    flex: 1;
-    overflow-y: auto;
-    padding-bottom: 10px;
-}
-
-/* Visible scrollbar */
-.poll-card.scroll-mode .poll-options .space-y-3::-webkit-scrollbar {
-    width: 8px;
-}
-
-.poll-card.scroll-mode .poll-options .space-y-3::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
-}
-
-.poll-card.scroll-mode .poll-options .space-y-3::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 4px;
-}
-
-.poll-card.scroll-mode .poll-options .space-y-3::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
-}
-
-/* Vote button container - FIXED FOR MOBILE VISIBILITY */
-.vote-button-container {
-    background: white;
-    padding: 20px;
-    z-index: 10;
-    margin: 0 -20px -15px -20px; /* Extend to edges */
-}
-
-.poll-card.scroll-mode .vote-button-container {
-    position: sticky;
-    bottom: 0;
-    margin-top: auto;
-    border-top: 1px solid #f0f0f0;
-}
-
-/* Regular mode (no scroll) vote button spacing */
-.poll-card:not(.scroll-mode) .vote-button-container {
-    margin-top: 20px;
-    margin-bottom: 0;
 }
 
 .poll-question {
@@ -160,6 +83,10 @@
 }
 
 /* Poll options styling */
+.poll-options {
+    padding: 15px 20px;
+}
+
 .poll-option {
     display: flex;
     align-items: center;
@@ -211,10 +138,25 @@
     aspect-ratio: 1/1;
 }
 
-/* Vote Button */
-.vote-button {
+/* GLOBALLY FIXED VOTE BUTTON */
+.global-vote-button-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    padding: 15px 20px;
+    border-top: 1px solid #e5e7eb;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+}
+
+.global-vote-button {
     display: block;
     width: 100%;
+    max-width: 800px;
     padding: 16px;
     background: linear-gradient(135deg, #8a0000 0%, #d40000 100%);
     color: white;
@@ -236,7 +178,7 @@
 }
 
 /* Animated border - always running */
-.vote-button::before {
+.global-vote-button::before {
     content: '';
     position: absolute;
     top: -3px;
@@ -253,7 +195,7 @@
 }
 
 /* Inner background */
-.vote-button::after {
+.global-vote-button::after {
     content: '';
     position: absolute;
     top: 2px;
@@ -306,7 +248,7 @@
 }
 
 /* Shimmer text effect - always running */
-.vote-button span {
+.global-vote-button span {
     position: relative;
     display: inline-block;
     background: linear-gradient(90deg, 
@@ -328,21 +270,21 @@
 }
 
 /* Hover state - enhances existing animations */
-.vote-button:hover {
+.global-vote-button:hover {
     animation-duration: 1.5s;
 }
 
-.vote-button:hover::before {
+.global-vote-button:hover::before {
     animation-duration: 1s;
     filter: brightness(1.2);
 }
 
-.vote-button:hover span {
+.global-vote-button:hover span {
     animation-duration: 1s;
 }
 
 /* Disabled state - stops all animations */
-.vote-button:disabled {
+.global-vote-button:disabled {
     background: #6b7280;
     cursor: not-allowed;
     transform: none;
@@ -350,12 +292,12 @@
     animation: none;
 }
 
-.vote-button:disabled::before,
-.vote-button:disabled::after {
+.global-vote-button:disabled::before,
+.global-vote-button:disabled::after {
     display: none;
 }
 
-.vote-button:disabled span {
+.global-vote-button:disabled span {
     background: #9ca3af;
     -webkit-text-fill-color: #9ca3af;
     animation: none;
@@ -538,10 +480,16 @@
     margin-bottom: 15px;
 }
 
+/* Hide the old vote button inside forms */
+.vote-button-container {
+    display: none;
+}
+
 /* Mobile Responsive */
 @media (max-width: 992px) {
     .poll-container {
         margin-top: 80px;
+        padding-bottom: 90px; /* Adjust for mobile */
     }
     .poll-heading {
         font-size: 16px !important;
@@ -553,36 +501,30 @@
 }
 
 @media (max-width: 768px) {
-    .poll-card.scroll-mode {
-        height: 80vh; /* Taller on mobile */
-        max-height: none; /* Remove max-height restriction */
-    }
-    
     .poll-header,
     .poll-options {
         padding: 12px;
     }
     
-    .vote-button-container {
-        padding: 15px;
-        margin: 0 -12px -12px -12px; /* Extend to edges */
-        background: white;
-        border-top: 1px solid #f0f0f0;
+    .global-vote-button-container {
+        padding: 12px 15px;
+    }
+    
+    .global-vote-button {
+        padding: 14px;
+        font-size: 1rem;
     }
 }
 
 @media (max-width: 640px) {
     .poll-container {
         padding: 15px;
+        padding-bottom: 85px; /* More space for very small screens */
     }
     
     .poll-card {
         border-radius: 10px;
         margin-bottom: 20px;
-    }
-    
-    .poll-card.scroll-mode {
-        height: 85vh; /* Even taller on very small screens */
     }
     
     .poll-header,
@@ -598,13 +540,24 @@
         max-height: 150px;
     }
     
-    .vote-button-container {
-        padding: 15px;
-        margin: 0 -10px -10px -10px;
+    .global-vote-button-container {
+        padding: 10px 12px;
+    }
+    
+    .global-vote-button {
+        padding: 12px;
+        font-size: 0.95rem;
     }
     
     .promo-code-section {
         padding: 15px;
+    }
+}
+
+/* Ensure proper spacing for iOS Safari */
+@supports (-webkit-touch-callout: none) {
+    .global-vote-button-container {
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
     }
 }
 </style>
@@ -615,7 +568,7 @@
     <h1 class="poll-heading">ভোট দিন, জিতে নিন বিশেষ অফার!</h1>
     
     {% for poll in polls %}
-    <div class="poll-card scroll-mode" id="poll-{{ poll.id }}">
+    <div class="poll-card" id="poll-{{ poll.id }}">
         <!-- Error message container -->
         <div id="poll-error-{{ poll.id }}" class="poll-error"></div>
         
@@ -669,9 +622,9 @@
                     {% endfor %}
                 </div>
                 
-                <!-- Vote Button Container - FIXED FOR MOBILE -->
+                <!-- Hidden Vote Button Container (replaced by global button) -->
                 <div class="vote-button-container">
-                    <button type="button" onclick="vote({{ poll.id }})" class="vote-button">
+                    <button type="button" class="vote-button">
                         <span>Vote Now</span>
                     </button>
                 </div>
@@ -711,6 +664,13 @@
     {% endfor %}
 </div>
 
+<!-- GLOBALLY FIXED VOTE BUTTON -->
+<div class="global-vote-button-container">
+    <button type="button" onclick="voteAllPolls()" class="global-vote-button">
+        <span>Vote Now</span>
+    </button>
+</div>
+
 {% block bottom_navigation %}
 {% endblock bottom_navigation %}
 
@@ -721,11 +681,27 @@
 
 {% block extra_js %}
 <script>
+// Track current active poll
+let currentActivePollId = null;
+
+// Initialize - set first poll as active
+document.addEventListener('DOMContentLoaded', function() {
+    const firstPoll = document.querySelector('.poll-card');
+    if (firstPoll) {
+        currentActivePollId = firstPoll.id.replace('poll-', '');
+    }
+});
+
+// Update current active poll when user interacts with options
+document.querySelectorAll('.poll-option input').forEach(input => {
+    input.addEventListener('change', function() {
+        const pollCard = this.closest('.poll-card');
+        currentActivePollId = pollCard.id.replace('poll-', '');
+    });
+});
+
 function afterVoting(pollId) {
     const pollCard = document.getElementById('poll-' + pollId);
-    
-    // Remove scroll mode to show full content
-    pollCard.classList.remove('scroll-mode');
     
     // Show BOTH results and promo sections
     document.getElementById('poll-results-' + pollId).style.display = 'block';
@@ -734,12 +710,15 @@ function afterVoting(pollId) {
     // Hide the voting form
     document.getElementById('poll-form-' + pollId).style.display = 'none';
     
+    // Hide the global vote button after successful voting
+    document.querySelector('.global-vote-button-container').style.display = 'none';
+    
     // Auto scroll to promo section after a short delay
     setTimeout(() => {
         const promoSection = document.getElementById('promo-code-section-' + pollId);
         promoSection.scrollIntoView({ 
             behavior: 'smooth', 
-            block: 'center' // This focuses on the middle of the promo section
+            block: 'center'
         });
         
         // Add highlight effect to draw attention
@@ -802,9 +781,30 @@ function showMessage(pollId, message, isError = true) {
     }, 5000);
 }
 
+// Global vote function for all polls
+function voteAllPolls() {
+    if (!currentActivePollId) {
+        // If no active poll, try to find the first visible poll
+        const firstPoll = document.querySelector('.poll-card');
+        if (firstPoll) {
+            currentActivePollId = firstPoll.id.replace('poll-', '');
+        } else {
+            showMessage('global', "No poll found to vote on.");
+            return;
+        }
+    }
+    
+    vote(currentActivePollId);
+}
+
 // Handle voting with Meta Pixel tracking
 function vote(pollId) {
     const form = document.getElementById(`poll-form-${pollId}`);
+    if (!form) {
+        showMessage('global', "Poll form not found.");
+        return;
+    }
+    
     const inputs = form.querySelectorAll('input[name="option"]:checked');
     const optionIds = Array.from(inputs).map(input => parseInt(input.value));
 
@@ -813,11 +813,11 @@ function vote(pollId) {
         return;
     }
 
-    // Show loading state
-    const voteButton = form.querySelector('.vote-button');
-    const originalButtonText = voteButton.innerHTML;
-    voteButton.disabled = true;
-    voteButton.innerHTML = '<span>Voting...</span>';
+    // Show loading state on global button
+    const globalVoteButton = document.querySelector('.global-vote-button');
+    const originalButtonText = globalVoteButton.innerHTML;
+    globalVoteButton.disabled = true;
+    globalVoteButton.innerHTML = '<span>Voting...</span>';
 
     fetch("{% url 'ajax_vote' %}", {
         method: "POST",
@@ -870,53 +870,90 @@ function vote(pollId) {
         // -------------------------------
         // Fire Meta Pixel Custom Event
         // -------------------------------
-        const pollVoteDetail = {
-            poll_id: pollId,
-            option_ids: optionIds,
-            option_texts: Array.from(inputs).map(input => input.dataset.optionText || input.value),
-            total_votes: data.total_votes,
-            content_type: "poll",
-            content_name: "Winter Collection Poll",              
-            content_ids: [`poll_${pollId}`],                    
-            content_category: "Winter Collection",              
-            event_source_url: window.location.href,           
-            value: 1.0,                                         
-            currency: "BDT",                                    
-            user_status: "{{ request.user.is_authenticated|yesno:'logged_in,guest' }}"
-        };
-
-        (function(){
+        (function () {
             function getCookie(name) {
                 const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
                 return match ? match[2] : null;
             }
 
-            // Ensure _fbc exists for FB tracking
-            if (!getCookie("_fbc") && window.location.search.includes("fbclid=")) {
-                const fbclid = new URLSearchParams(location.search).get("fbclid");
-                document.cookie = `_fbc=fb.1.${Date.now()}.${fbclid}; path=/; SameSite=Lax`;
+            function setCookie(name, value) {
+                document.cookie = `${name}=${value}; path=/; SameSite=Lax`;
             }
 
-            const pollEventId = 'pollvote_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
+            const fbclid = new URLSearchParams(location.search).get("fbclid");
+            const hasFbc = !!getCookie("_fbc");
+            const hasFbp = !!getCookie("_fbp");
+
+            // ✅ Ensure _fbc exists
+            if (!hasFbc) {
+                if (fbclid) {
+                    setCookie("_fbc", `fb.1.${Date.now()}.${fbclid}`);
+                } else {
+                    const random = Math.floor(Math.random() * 1e9);
+                    setCookie("_fbc", `fb.1.${Date.now()}.${random}`);
+                }
+                console.log("🧩 _fbc cookie created");
+            }
+
+            // ✅ Ensure _fbp exists
+            if (!hasFbp) {
+                const random = Math.floor(Math.random() * 1e9);
+                setCookie("_fbp", `fb.1.${Date.now()}.${random}`);
+                console.log("🧩 _fbp cookie created");
+            }
+
+            // --- Get existing or create new dedup event ID ---
+            let pollEventId = getCookie("fb_event_id");
+            if (!pollEventId) {
+                pollEventId = `pollvote_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+                setCookie("fb_event_id", pollEventId);
+            }
+
+            const pollVoteDetail = {
+                poll_id: pollId,
+                option_ids: optionIds,
+                option_texts: Array.from(inputs).map(
+                    (input) => input.dataset.optionText || input.value
+                ),
+                total_votes: data.total_votes,
+                content_type: "poll",
+                content_name: "Winter Collection Poll",
+                content_ids: [`poll_${pollId}`],
+                content_category: "Winter Collection",
+                event_source_url: window.location.href,
+                value: 1.0,
+                currency: "BDT",
+                user_status: "{{ request.user.is_authenticated|yesno:'logged_in,guest' }}",
+                event_id: pollEventId,
+            };
 
             if (typeof fbq !== "undefined") {
-                pollVoteDetail.eventID = pollEventId;
-                fbq('trackCustom', 'PollVote', pollVoteDetail, { eventID: pollEventId });
-                console.log('PollVote pixel fired:', pollVoteDetail, 'EventID:', pollEventId);
+                fbq("trackCustom", "PollVote", pollVoteDetail, { eventID: pollEventId });
+                console.log("✅ PollVote Pixel fired:", pollVoteDetail);
+            } else {
+                console.warn("⚠️ fbq not defined yet. Pixel may not have loaded.");
             }
 
-            // Dispatch centralized JS event
-            pollVoteDetail.event_id = pollEventId;
-            document.dispatchEvent(new CustomEvent('pixel:poll_vote', { detail: pollVoteDetail }));
+            // Dispatch to central tracker (optional)
+            document.dispatchEvent(
+                new CustomEvent("pixel:poll_vote", { detail: pollVoteDetail })
+            );
+
+            // ✅ Debug summary
+            console.log("📊 Cookie Status:");
+            console.log("_fbp:", getCookie("_fbp"));
+            console.log("_fbc:", getCookie("_fbc"));
+            console.log("fb_event_id:", getCookie("fb_event_id"));
         })();
+
 
     })
     .catch(error => {
         showMessage(pollId, error.message);
     })
     .finally(() => {
-        voteButton.disabled = false;
-        voteButton.innerHTML = originalButtonText;
+        globalVoteButton.disabled = false;
+        globalVoteButton.innerHTML = originalButtonText;
     });
 }
 
