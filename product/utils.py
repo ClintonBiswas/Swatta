@@ -53,20 +53,39 @@ def normalize_user_data(user_data):
             user_data = json.loads(user_data)
         except:
             user_data = {}
+
     if not isinstance(user_data, dict):
         user_data = {}
 
     normalized = {}
+
     for k, vals in user_data.items():
-        if not vals:
+        if vals is None or vals == "":
             continue
-        if k in ("em", "ph"):
-            normalized[k] = [hash_data(v) for v in _ensure_list(vals) if v]
-        elif k in ("fbc", "fbp", "fn", "client_ip_address", "client_user_agent", "external_id"):
-            normalized[k] = _ensure_list(vals)
+
+        # Convert list → single value if only one exists
+        if isinstance(vals, list) and len(vals) == 1:
+            vals = vals[0]
+
+        # Hash these fields
+        if k in ("em", "ph", "fn"):
+            normalized[k] = hash_data(vals)
+
+        # These must NOT be lists
+        elif k in ("fbc", "fbp", "external_id"):
+            normalized[k] = str(vals)
+
+        # These must be plain strings
+        elif k in ("client_ip_address", "client_user_agent"):
+            normalized[k] = str(vals)
+
+        # Everything else
         else:
             normalized[k] = vals
+
     return normalized
+
+
 
 def send_event(event_name, user_data=None, custom_data=None, test_event_code=None, event_id=None):
     event_id = event_id or str(uuid.uuid4())

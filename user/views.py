@@ -43,6 +43,7 @@ def HomeView(request):
     send_event(
     event_name="PageView",
     event_id=event_id,
+    test_event_code="TEST66176",
     user_data={
         "client_ip_address": get_client_ip(request),
         "client_user_agent": request.META.get("HTTP_USER_AGENT"),

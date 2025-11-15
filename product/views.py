@@ -230,6 +230,7 @@ def ProductDetails(request, product_slug):
         event_id=event_id,
         user_data=user_data,
         custom_data=custom_data,
+        test_event_code="TEST66176"
     )
 
 
@@ -390,7 +391,8 @@ def add_to_cart(request):
             event_name="AddToCart",
             user_data=user_data,
             custom_data=custom_data,
-            event_id=data.get("event_id")
+            event_id=data.get("event_id"),
+            test_event_code="TEST66176"
         )
 
         print(f"📌 AddToCart event_id: {event_id}")
@@ -595,8 +597,8 @@ def buy_now(request):
         print(f"📌 BuyNow AddToCart event_id: {add_event_id} | Checkout event_id: {checkout_event_id}")
 
         # Send CAPI events
-        send_event("AddToCart", user_data=user_data, custom_data=custom_data, event_id=add_event_id)
-        send_event("InitiateCheckout", user_data=user_data, custom_data=custom_data, event_id=checkout_event_id)
+        send_event("AddToCart", user_data=user_data, custom_data=custom_data, event_id=add_event_id, test_event_code="TEST66176")
+        send_event("InitiateCheckout", user_data=user_data, custom_data=custom_data, event_id=checkout_event_id, test_event_code="TEST66176")
 
         redirect_url = reverse("product:checkout")
         return JsonResponse({
