@@ -1,29 +1,36 @@
 {% load static %}
 <script>
+  // User role & Pixel ID from template/context
   window.CURRENT_USER_ROLE = "{{ request.user.is_authenticated|yesno:'logged_in,guest' }}";
-  window.FACEBOOK_PIXEL_ID = "{{ FACEBOOK_PIXEL_ID }}"; // inject from template context or settings
+  window.FACEBOOK_PIXEL_ID = "{{ FACEBOOK_PIXEL_ID }}";
 </script>
 
-<!-- FB Pixel loader -->
+<!-- FB Pixel Loader -->
 <script>
-  !function(f,b,e,v,n,t,s){
-    if(f.fbq) return; n=f.fbq=function(){ n.callMethod? n.callMethod.apply(n,arguments): n.queue.push(arguments) };
-    if(!f._fbq) f._fbq=n; n.push=n; n.loaded=!0; n.version='2.0'; n.queue=[];
-    t=b.createElement(e); t.async=!0; t.src=v; s=b.getElementsByTagName(e)[0];
-    s.parentNode.insertBefore(t,s);
-  }(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
+!function(f,b,e,v,n,t,s){
+  if(f.fbq) return;
+  n=f.fbq=function(){ n.callMethod? n.callMethod.apply(n,arguments): n.queue.push(arguments) };
+  if(!f._fbq) f._fbq=n; n.push=n; n.loaded=!0; n.version='2.0'; n.queue=[];
+  t=b.createElement(e); t.async=!0; t.src=v;
+  s=b.getElementsByTagName(e)[0]; s.parentNode.insertBefore(t,s);
+}(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
 
-  // initialize (no token / secret here)
-  if (window.FACEBOOK_PIXEL_ID) {
-    fbq('init', window.FACEBOOK_PIXEL_ID);
-  }
+// Initialize Pixel
+if(window.FACEBOOK_PIXEL_ID){
+  fbq('init', window.FACEBOOK_PIXEL_ID);
+}
 
-  // Helper to read cookie
-  function getCookie(name){ const m = document.cookie.match(new RegExp("(^| )"+name+"=([^;]+)")); return m ? decodeURIComponent(m[2]) : null; }
+// Cookie helper
+function getCookie(name){
+  const m = document.cookie.match(new RegExp("(^| )"+name+"=([^;]+)"));
+  return m ? decodeURIComponent(m[2]) : null;
+}
 
-  // Fire PageView using server-saved fb_event_id cookie (if set)
-  (function(){
-    const pageviewEventId = getCookie("fb_event_id") || null;
+// Fire PageView only if server-side didn't already fire it
+(function(){
+  const pageviewEventId = getCookie("fb_event_id") || null;
+
+  if(!pageviewEventId){
     fbq('track', 'PageView', {
       value: 1.0,
       currency: 'BDT',
@@ -33,10 +40,13 @@
       event_source_url: window.location.href,
       page_title: document.title,
       action_source: 'website'
-    }, pageviewEventId ? { eventID: pageviewEventId } : undefined);
-    console.log("PageView (Browser) fired with server event_id:", pageviewEventId);
-  })();
+    });
+    console.log("Browser PageView fired (no server event_id)");
+  }else{
+    console.log("Server-side PageView already fired, browser skipped:", pageviewEventId);
+  }
+})();
 </script>
 
-<!-- load fb-data.js (below) -->
+<!-- Load your fb-data.js for custom events -->
 <script src="{% static 'js/fb-data.js' %}"></script>
