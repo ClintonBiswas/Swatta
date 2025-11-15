@@ -11,6 +11,7 @@ from blog.models import MyBlog
 from .utils import get_popular_products
 from product.utils import send_event
 from pool.utils import get_client_ip
+import uuid
 
 # Create your views here.
 
@@ -37,27 +38,27 @@ def HomeView(request):
     
     blogs = MyBlog.objects.all()
 
-    event_id = request.COOKIES.get("fb_event_id")
-
+    event_id = str(uuid.uuid4())
+    # 2️⃣ Server-side PageView (FULL dedupe-ready payload)
     send_event(
-        event_name="PageView",
-        event_id=event_id,
-        user_data={
-            "client_ip_address": get_client_ip(request),
-            "client_user_agent": request.META.get("HTTP_USER_AGENT"),
-            "fbc": [request.COOKIES.get("_fbc")] if request.COOKIES.get("_fbc") else [],
-            "fbp": [request.COOKIES.get("_fbp")] if request.COOKIES.get("_fbp") else [],
-        },
-        custom_data={
-            "page_path": request.path,
-            "page_title": getattr(request, "title", "Home"),
-            "value": 1.0,
-            "currency": "BDT",
-            "content_ids": [request.path],
-            "content_category": "PageView",
-            "event_source_url": request.build_absolute_uri(),
-        },
-    )
+    event_name="PageView",
+    event_id=event_id,
+    user_data={
+        "client_ip_address": get_client_ip(request),
+        "client_user_agent": request.META.get("HTTP_USER_AGENT"),
+        "fbc": request.COOKIES.get("_fbc"),
+        "fbp": request.COOKIES.get("_fbp"),
+    },
+    custom_data={
+        "page_path": request.path,
+        "page_title": "Home",
+        "value": 1.0,
+        "currency": "BDT",
+        "content_ids": [request.path],
+        "content_category": "PageView",
+        "event_source_url": request.build_absolute_uri(),
+    }
+)
 
 
     context = {
@@ -71,7 +72,16 @@ def HomeView(request):
         'discount_products': discount_products,
         'blogs': blogs,
     }
-    return render(request, 'user/home.html', context)
+    response = render(request, 'user/home.html', context)
+    response.set_cookie(
+        "fb_event_id",
+        event_id,
+        max_age=60*30,       # 30 minutes
+        secure=False,
+        httponly=False,
+        samesite="Lax"
+    )
+    return response
 
 def MostViewProduct(request):
     popular_products = get_popular_products(limit=20)

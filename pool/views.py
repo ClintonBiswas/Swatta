@@ -3,7 +3,7 @@ from django.urls import reverse, NoReverseMatch
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_protect
-import json, time, logging
+import json, logging, uuid
 from .models import Poll, PollOption, Vote
 from product.models import PromoCode, FeatureCategory
 from django.utils import timezone
@@ -39,22 +39,24 @@ def ajax_vote(request):
         if not poll_id or not option_ids:
             return JsonResponse({'error': 'Invalid request data'}, status=400)
 
-        ip_address = get_client_ip(request)
+        # ensure session
         if not request.session.session_key:
             request.session.save()
         session_key = request.session.session_key
 
+        ip_address = get_client_ip(request)  # your helper
+
         poll = get_object_or_404(Poll, id=poll_id, is_active=True)
 
-        # shop_now_url
+        # shop_now_url fallback
         shop_now_url = reverse('user:home')
-        if poll.product_category and poll.product_category.slug:
+        if getattr(poll, 'product_category', None) and getattr(poll.product_category, 'slug', None):
             try:
                 shop_now_url = reverse('product:category-products', kwargs={'category_slug': poll.product_category.slug})
             except NoReverseMatch:
                 shop_now_url = f'/category-products/{poll.product_category.slug}/'
 
-        # --- Active promo code ---
+        # active promo code (unchanged)
         promo_code = PromoCode.objects.filter(
             is_active=True,
             valid_from__lte=timezone.now(),
@@ -71,7 +73,7 @@ def ajax_vote(request):
                 'shop_now_url': shop_now_url
             }
 
-        # --- Normalize option_ids ---
+        # normalize option_ids
         if not isinstance(option_ids, list):
             option_ids = [option_ids]
 
@@ -82,7 +84,7 @@ def ajax_vote(request):
         if not all(option_id in valid_options for option_id in option_ids):
             return JsonResponse({'error': 'Invalid option selected'}, status=400)
 
-        # --- Remove previous votes ---
+        # remove previous votes
         voter_filter = {'poll': poll}
         if request.user.is_authenticated:
             voter_filter['user'] = request.user
@@ -91,7 +93,7 @@ def ajax_vote(request):
 
         Vote.objects.filter(**voter_filter).delete()
 
-        # --- Create new votes ---
+        # create new votes
         voted_options = []
         for option_id in option_ids:
             option = poll.options.get(id=option_id)
@@ -104,50 +106,11 @@ def ajax_vote(request):
             )
             voted_options.append(option.text or str(option.id))
 
-        # --- Recalculate total votes ---
+        # recalc total votes
         poll.total_votes = Vote.objects.filter(poll=poll).values('user', 'session_key').distinct().count()
         poll.save()
 
-        # -----------------------------
-        # SERVER-SIDE PIXEL: PollVote
-        # -----------------------------
-        try:
-            user_em = [request.user.email] if request.user.is_authenticated and getattr(request.user, 'email', None) else []
-            user_ph = [getattr(request.user, 'phone_number', '')] if request.user.is_authenticated else []
-
-            event_id = request.COOKIES.get("fb_event_id") or f"pollvote_{poll.id}_{int(time.time()*1000)}"
-            ip_address = get_client_ip(request)  # make sure you have this utility
-
-            send_event(
-                event_name="PollVote",
-                event_id=event_id,  # deduplication
-                user_data={
-                    "em": user_em,
-                    "ph": user_ph,
-                    "client_ip_address": ip_address,
-                    "client_user_agent": request.META.get("HTTP_USER_AGENT"),
-                    "fbc": [request.COOKIES.get("_fbc")] if request.COOKIES.get("_fbc") else [],
-                    "fbp": [request.COOKIES.get("_fbp")] if request.COOKIES.get("_fbp") else [],
-                },
-                custom_data={
-                    "poll_id": poll.id,
-                    "option_ids": option_ids,
-                    "option_texts": voted_options,
-                    "total_votes": poll.total_votes,
-                    "content_type": "poll",
-                    "content_name": "Winter Collection Poll",     
-                    "content_ids": [f"poll_{poll.id}"],           
-                    "content_category": "Winter Collection",     
-                    "event_source_url": request.build_absolute_uri(), 
-                    "value": 1.0,                                 
-                    "currency": "BDT",                            
-                }
-            )
-        except Exception as e:
-            logger.error(f"PollVote Pixel send error: {str(e)}")
-
-
-        # --- Prepare results ---
+        # prepare results for response
         result_data = []
         for idx, option in enumerate(poll.options.all()):
             votes = option.vote_count
@@ -161,12 +124,62 @@ def ajax_vote(request):
                 'color': get_color_for_option(idx),
             })
 
+        # -----------------------------
+        # SERVER-SIDE PIXEL: PollVote
+        # -----------------------------
+        event_id = str(uuid.uuid4())  # generate once
+        print("pool-event-id", event_id)
+        try:
+            # read cookies as strings (or None)
+            fbp = request.COOKIES.get("_fbp")
+            fbc = request.COOKIES.get("_fbc") or request.GET.get("fbclid")
+
+            user_data = {
+                "client_ip_address": ip_address,
+                "client_user_agent": request.META.get("HTTP_USER_AGENT"),
+                "fbp": fbp,
+                "fbc": fbc,
+            }
+
+            if request.user.is_authenticated:
+                if getattr(request.user, "email", None):
+                    user_data["em"] = request.user.email.lower().strip()
+                if getattr(request.user, "phone_number", None):
+                    user_data["ph"] = request.user.phone_number.strip()
+                user_data["external_id"] = str(request.user.id)
+
+            custom_data = {
+                "poll_id": poll.id,
+                "option_ids": option_ids,
+                "option_texts": voted_options,
+                "total_votes": poll.total_votes,
+                "content_type": "poll",
+                "content_name": getattr(poll, "question", "Poll"),
+                "content_ids": [f"poll_{poll.id}"],
+                "content_category": getattr(getattr(poll, 'product_category', None), 'title', 'Polls'),
+                "event_source_url": request.build_absolute_uri(),
+                "currency": "BDT",
+                "value": 1.0,
+            }
+
+            # send to Meta Conversions API
+            send_event(
+                event_name="PollVote",
+                event_id=event_id,
+                user_data=user_data,
+                custom_data=custom_data,
+            )
+        except Exception as e:
+            logger.error(f"PollVote Pixel send error: {str(e)}")
+
+        # finally return JSON (include event_id so browser can fire with same id)
         return JsonResponse({
             'success': True,
             'message': 'Your vote has been recorded!',
             'results': result_data,
             'total_votes': poll.total_votes,
-            **promo_data  # <-- restore promo info
+            'event_id': event_id,
+            **promo_data
         })
 
     except json.JSONDecodeError:
@@ -174,6 +187,7 @@ def ajax_vote(request):
     except PollOption.DoesNotExist:
         return JsonResponse({'error': 'Invalid option selected'}, status=400)
     except Exception as e:
+        logger.exception("ajax_vote error")
         return JsonResponse({'error': str(e)}, status=500)
 
 

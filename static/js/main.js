@@ -98,11 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
         })
         .catch(error => console.error("Error fetching cart count:", error));
 
-
-//start buy-now add-tocart     
-// ============================
-// Helper: Extract product data
-// ============================
+// Helper: extract product info safely start pixel
 function getProductData(btn) {
     let productId = btn.dataset.product;
     let productName = btn.dataset.productName || productId;
@@ -111,12 +107,12 @@ function getProductData(btn) {
     let quantity = 1;
     const qtyInput = document.querySelector("#cart-quantity");
     if (qtyInput) {
-        let parsedQty = parseInt(qtyInput.value);
-        if (!isNaN(parsedQty) && parsedQty > 0) quantity = parsedQty;
+        let q = parseInt(qtyInput.value);
+        if (!isNaN(q) && q > 0) quantity = q;
     }
 
-    let size = null;
-    let color = null;
+    // Safe size/color
+    let size = null, color = null;
     const sizeInput = document.querySelector('input[name="size"]:checked');
     const colorInput = document.querySelector('input[name="color"]:checked');
     if (sizeInput) size = sizeInput.value;
@@ -125,51 +121,32 @@ function getProductData(btn) {
     return { productId, productName, productPrice, quantity, size, color };
 }
 
-// ============================
-// Add to Cart - Event Delegation
-// ============================
+// Add to Cart
 document.addEventListener("click", function(event) {
-    const addToCartBtn = event.target.closest(".add-to-cartt");
-    if (!addToCartBtn) return;
+    const btn = event.target.closest(".add-to-cartt");
+    if (!btn) return;
     event.preventDefault();
 
-    const { productId, productName, productPrice, quantity, size, color } = getProductData(addToCartBtn);
-
-    // ✅ Generate Event ID for CAPI + Pixel
+    const { productId, productName, productPrice, quantity, size, color } = getProductData(btn);
     const eventId = "evt_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
 
-    // ✅ Send Pixel Browser Event
-    setTimeout(() => {
-        document.dispatchEvent(new CustomEvent("pixel:add_to_cart", {
-            detail: {
-                id: productId,
-                name: productName,
-                price: productPrice,
-                quantity: quantity,
-                currency: "BDT",
-                event_id: eventId  // ✅ Pass event ID to pixel trigger
-            }
-        }));
-    }, 0);
+    console.log("🔥 AddToCart frontend event_id:", eventId);
 
-    // ✅ Send event to backend for CAPI
+    // Fire pixel immediately (frontend)
+    document.dispatchEvent(new CustomEvent("pixel:add_to_cart", {
+        detail: { id: productId, name: productName, price: productPrice, quantity, currency:"BDT", event_id: eventId }
+    }));
+
+    // Backend CAPI
     fetch("/add-to-cart/", {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": getCSRFToken(),
-        },
-        body: JSON.stringify({
-            product_id: productId,
-            quantity,
-            size,
-            color,
-            event_id: eventId  // ✅ Send to Django
-        }),
+        headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
+        body: JSON.stringify({ product_id: productId, quantity, size, color, event_id: eventId }),
     })
     .then(res => res.json())
     .then(data => {
-        if (data.status === "success") {
+        if(data.status === "success") {
+            console.log("✅ AddToCart backend event_id:", data.event_id);
             updateCartUI(data);
             showToast(data.message);
         } else {
@@ -179,73 +156,91 @@ document.addEventListener("click", function(event) {
     .catch(err => console.error("Add to Cart Error:", err));
 });
 
-
-// ============================
-// Buy Now - Event Delegation
-// ============================
+// Buy Now
 document.addEventListener("click", function(event) {
-    const buyNowBtn = event.target.closest(".buy-noww");
-    if (!buyNowBtn) return;
-    event.preventDefault();
+  const btn = event.target.closest(".buy-noww");
+  if (!btn) return;
+  event.preventDefault();
 
-    const { productId, productName, productPrice, quantity, size, color } = getProductData(buyNowBtn);
+  const { productId, productName, productPrice, quantity, size, color } = getProductData(btn);
 
-    // ✅ Generate Event IDs
-    const addToCartEventId = "evt_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
-    const checkoutEventId   = "evt_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+  // Generate shared event_ids for frontend + backend
+  const ts = Date.now();
+  const rand = Math.random().toString(36).substr(2,9);
+  const addToCartEventId = `evt_${ts}_add_${rand}`;
+  const checkoutEventId   = `evt_${ts}_checkout_${rand}`;
 
-    // ✅ Pixel Events
-    setTimeout(() => {
-        // AddToCart Pixel
-        document.dispatchEvent(new CustomEvent("pixel:add_to_cart", {
-            detail: {
-                id: productId,
-                name: productName,
-                price: productPrice,
-                quantity: quantity,
-                currency: "BDT",
-                event_id: addToCartEventId
-            }
-        }));
+  console.log("🔥 BuyNow frontend AddToCart event_id:", addToCartEventId);
+  console.log("🔥 BuyNow frontend Checkout event_id:", checkoutEventId);
 
-        // InitiateCheckout Pixel
-        document.dispatchEvent(new CustomEvent("pixel:initiate_checkout", {
-            detail: {
-                id: productId,
-                name: productName,
-                price: productPrice,
-                quantity: quantity,
-                currency: "BDT",
-                event_id: checkoutEventId
-            }
-        }));
-    }, 0);
+  // Fire browser pixels immediately so fbq has browser events
+  document.dispatchEvent(new CustomEvent("pixel:add_to_cart", {
+    detail: { id: productId, name: productName, price: productPrice, quantity, currency:"BDT", event_id: addToCartEventId }
+  }));
+  document.dispatchEvent(new CustomEvent("pixel:initiate_checkout", {
+    detail: { id: productId, name: productName, price: productPrice, quantity, currency:"BDT", event_id: checkoutEventId }
+  }));
 
-    // ✅ Send event IDs to backend
-    fetch("/buy-now/", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": getCSRFToken(),
-        },
-        body: JSON.stringify({
-            product_id: productId,
-            quantity, size, color,
-            add_to_cart_event_id: addToCartEventId,
-            checkout_event_id: checkoutEventId
-        }),
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.status === "success") {
-            window.location.href = data.redirect_url;
-        } else {
-            alert("Error: " + data.message);
-        }
-    })
-    .catch(err => console.error("Buy Now Error:", err));
+  // Save checkout event id into a short-lived cookie for checkout page
+  // TTL = 5 minutes (300 seconds)
+  setCookie("fb_event_id", checkoutEventId, 300);
+
+  // Send to backend CAPI (backend expects add_to_cart_event_id & checkout_event_id)
+  fetch("/buy-now/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
+    body: JSON.stringify({
+      product_id: productId,
+      quantity,
+      size,
+      color,
+      add_to_cart_event_id: addToCartEventId,
+      checkout_event_id: checkoutEventId
+    }),
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.status === "success") {
+      // Confirm backend echoed the same ids (debug)
+      console.log("✅ BuyNow backend AddToCart event_id:", data.add_to_cart_event_id);
+      console.log("✅ BuyNow backend Checkout event_id:", data.checkout_event_id);
+
+      // Redirect to checkout (use backend redirect or fallback)
+      window.location.href = data.redirect_url || "/checkout/";
+    } else {
+      // cleanup cookie if backend failed
+      deleteCookie("fb_event_id");
+      alert("Error: " + data.message);
+    }
+  })
+  .catch(err => {
+    console.error("Buy Now Error:", err);
+    // fail-safe: keep cookie so checkout script can read it, then redirect
+    window.location.href = "/checkout/";
+  });
 });
-//end buy now pixel
+
+//end pixel
+
+//set cookie globally
+function setCookie(name, value, maxAgeSeconds) {
+  let cookie = encodeURIComponent(name) + "=" + encodeURIComponent(value) + "; path=/; SameSite=Lax";
+  if (typeof maxAgeSeconds === "number") {
+    cookie += "; max-age=" + parseInt(maxAgeSeconds, 10);
+  }
+  document.cookie = cookie;
+}
+
+function getCookie(name) {
+  const m = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+  return m ? decodeURIComponent(m[2]) : null;
+}
+
+function deleteCookie(name) {
+  document.cookie = encodeURIComponent(name) + "=; path=/; max-age=0; SameSite=Lax";
+}
+
+
 
     // Quantity Buttons
     document.querySelectorAll(".quantity-product-button").forEach((button) => {

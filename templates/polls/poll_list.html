@@ -681,299 +681,71 @@
 
 {% block extra_js %}
 <script>
-// Track current active poll
+// ---------------------------
+// POLL VOTE SCRIPT (final)
+// ---------------------------
 let currentActivePollId = null;
 
-// Initialize - set first poll as active
 document.addEventListener('DOMContentLoaded', function() {
     const firstPoll = document.querySelector('.poll-card');
-    if (firstPoll) {
-        currentActivePollId = firstPoll.id.replace('poll-', '');
-    }
-});
+    if (firstPoll) currentActivePollId = firstPoll.id.replace('poll-', '');
 
-// Update current active poll when user interacts with options
-document.querySelectorAll('.poll-option input').forEach(input => {
-    input.addEventListener('change', function() {
-        const pollCard = this.closest('.poll-card');
-        currentActivePollId = pollCard.id.replace('poll-', '');
+    // attach listeners (use event delegation safe guard)
+    document.querySelectorAll('.poll-option input').forEach(input => {
+        input.addEventListener('change', function() {
+            const pollCard = this.closest('.poll-card');
+            if (pollCard) currentActivePollId = pollCard.id.replace('poll-', '');
+        });
     });
 });
 
+function getCookie(name) {
+    const m = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+    return m ? decodeURIComponent(m[2]) : null;
+}
+
+function showMessage(pollId, message, isError = true) {
+    const el = document.getElementById(`poll-error-${pollId}`);
+    if (!el) return;
+    el.textContent = message;
+    el.style.display = 'block';
+    el.classList.toggle('poll-error', isError);
+    el.classList.toggle('success-message', !isError);
+    setTimeout(() => { el.style.display = 'none'; }, 5000);
+}
+
 function afterVoting(pollId) {
-    const pollCard = document.getElementById('poll-' + pollId);
-    
-    // Show BOTH results and promo sections
-    document.getElementById('poll-results-' + pollId).style.display = 'block';
-    document.getElementById('promo-code-section-' + pollId).style.display = 'block';
-    
-    // Hide the voting form
-    document.getElementById('poll-form-' + pollId).style.display = 'none';
-    
-    // Hide the global vote button after successful voting
-    document.querySelector('.global-vote-button-container').style.display = 'none';
-    
-    // Auto scroll to promo section after a short delay
+    const resultsEl = document.getElementById('poll-results-' + pollId);
+    const promoEl = document.getElementById('promo-code-section-' + pollId);
+    const formEl = document.getElementById('poll-form-' + pollId);
+
+    if (resultsEl) resultsEl.style.display = 'block';
+    if (promoEl) promoEl.style.display = 'block';
+    if (formEl) formEl.style.display = 'none';
+
+    const globalContainer = document.querySelector('.global-vote-button-container');
+    if (globalContainer) globalContainer.style.display = 'none';
+
     setTimeout(() => {
-        const promoSection = document.getElementById('promo-code-section-' + pollId);
-        promoSection.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'center'
-        });
-        
-        // Add highlight effect to draw attention
-        promoSection.style.animation = 'highlightFlash 2s ease-in-out';
+        if (promoEl) {
+            promoEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            promoEl.style.animation = 'highlightFlash 2s ease-in-out';
+        }
     }, 800);
 }
 
-// Add highlight animation for promo section
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes highlightFlash {
-        0% { 
-            background-color: transparent; 
-            transform: scale(1);
-        }
-        50% { 
-            background-color: rgba(138, 0, 0, 0.1); 
-            transform: scale(1.02);
-        }
-        100% { 
-            background-color: transparent; 
-            transform: scale(1);
-        }
-    }
-`;
-document.head.appendChild(style);
-
-// Utility function to get CSRF token
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
-
-// Show message (error or success)
-function showMessage(pollId, message, isError = true) {
-    const errorEl = document.getElementById(`poll-error-${pollId}`);
-    errorEl.textContent = message;
-    errorEl.style.display = 'block';
-    
-    if (!isError) {
-        errorEl.classList.remove('poll-error');
-        errorEl.classList.add('success-message');
-    } else {
-        errorEl.classList.remove('success-message');
-        errorEl.classList.add('poll-error');
-    }
-    
-    setTimeout(() => {
-        errorEl.style.display = 'none';
-    }, 5000);
-}
-
-// Global vote function for all polls
-function voteAllPolls() {
-    if (!currentActivePollId) {
-        // If no active poll, try to find the first visible poll
-        const firstPoll = document.querySelector('.poll-card');
-        if (firstPoll) {
-            currentActivePollId = firstPoll.id.replace('poll-', '');
-        } else {
-            showMessage('global', "No poll found to vote on.");
-            return;
-        }
-    }
-    
-    vote(currentActivePollId);
-}
-
-// Handle voting with Meta Pixel tracking
-function vote(pollId) {
-    const form = document.getElementById(`poll-form-${pollId}`);
-    if (!form) {
-        showMessage('global', "Poll form not found.");
-        return;
-    }
-    
-    const inputs = form.querySelectorAll('input[name="option"]:checked');
-    const optionIds = Array.from(inputs).map(input => parseInt(input.value));
-
-    if (optionIds.length === 0) {
-        showMessage(pollId, "Please select at least one option.");
-        return;
-    }
-
-    // Show loading state on global button
-    const globalVoteButton = document.querySelector('.global-vote-button');
-    const originalButtonText = globalVoteButton.innerHTML;
-    globalVoteButton.disabled = true;
-    globalVoteButton.innerHTML = '<span>Voting...</span>';
-
-    fetch("{% url 'ajax_vote' %}", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": getCookie("csrftoken")
-        },
-        body: JSON.stringify({
-            poll_id: pollId,
-            option_ids: optionIds
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) throw new Error(data.error);
-
-        // Call afterVoting function to handle layout changes and focus on promo
-        afterVoting(pollId);
-
-        // Update poll results
-        updatePollResults(pollId, data.results, data.total_votes);
-
-        // Update total votes display
-        document.getElementById(`poll-total-votes-${pollId}`).textContent = data.total_votes;
-        document.getElementById(`total-votes-${pollId}`).textContent = data.total_votes;
-
-        // Promo code display - MAIN FOCUS
-        const promoContainer = document.getElementById(`promo-code-section-${pollId}`);
-        if (data.promo_code && data.promo_message && data.discount) {
-            const promoMessageEl = document.getElementById(`promo-message-${pollId}`);
-            const promoCodeEl = document.getElementById(`promo-code-${pollId}`);
-            const promoDiscountEl = document.getElementById(`promo-discount-${pollId}`);
-            const promoValidEl = document.getElementById(`promo-valid-until-${pollId}`);
-            const shopNowLink = document.getElementById(`shop-now-link-${pollId}`);
-
-            if (promoMessageEl) promoMessageEl.textContent = data.promo_message;
-            if (promoCodeEl) promoCodeEl.textContent = data.promo_code;
-            if (promoDiscountEl) promoDiscountEl.textContent = data.discount;
-            if (promoValidEl) promoValidEl.textContent = data.valid_until || '';
-            if (shopNowLink && data.shop_now_url) shopNowLink.href = data.shop_now_url;
-
-            promoContainer.style.display = 'block';
-        }
-
-        // Show success message
-        if (data.success) {
-            showMessage(pollId, data.message || 'Thank you for voting! Check your special offer below!', false);
-        }
-
-        // -------------------------------
-        // Fire Meta Pixel Custom Event
-        // -------------------------------
-        (function () {
-            function getCookie(name) {
-                const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
-                return match ? match[2] : null;
-            }
-
-            function setCookie(name, value) {
-                document.cookie = `${name}=${value}; path=/; SameSite=Lax`;
-            }
-
-            const fbclid = new URLSearchParams(location.search).get("fbclid");
-            const hasFbc = !!getCookie("_fbc");
-            const hasFbp = !!getCookie("_fbp");
-
-            // ✅ Ensure _fbc exists
-            if (!hasFbc) {
-                if (fbclid) {
-                    setCookie("_fbc", `fb.1.${Date.now()}.${fbclid}`);
-                } else {
-                    const random = Math.floor(Math.random() * 1e9);
-                    setCookie("_fbc", `fb.1.${Date.now()}.${random}`);
-                }
-                console.log("🧩 _fbc cookie created");
-            }
-
-            // ✅ Ensure _fbp exists
-            if (!hasFbp) {
-                const random = Math.floor(Math.random() * 1e9);
-                setCookie("_fbp", `fb.1.${Date.now()}.${random}`);
-                console.log("🧩 _fbp cookie created");
-            }
-
-            // --- Get existing or create new dedup event ID ---
-            let pollEventId = getCookie("fb_event_id");
-            if (!pollEventId) {
-                pollEventId = `pollvote_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
-                setCookie("fb_event_id", pollEventId);
-            }
-
-            const pollVoteDetail = {
-                poll_id: pollId,
-                option_ids: optionIds,
-                option_texts: Array.from(inputs).map(
-                    (input) => input.dataset.optionText || input.value
-                ),
-                total_votes: data.total_votes,
-                content_type: "poll",
-                content_name: "Winter Collection Poll",
-                content_ids: [`poll_${pollId}`],
-                content_category: "Winter Collection",
-                event_source_url: window.location.href,
-                value: 1.0,
-                currency: "BDT",
-                user_status: "{{ request.user.is_authenticated|yesno:'logged_in,guest' }}",
-                event_id: pollEventId,
-            };
-
-            if (typeof fbq !== "undefined") {
-                fbq("trackCustom", "PollVote", pollVoteDetail, { eventID: pollEventId });
-                console.log("✅ PollVote Pixel fired:", pollVoteDetail);
-            } else {
-                console.warn("⚠️ fbq not defined yet. Pixel may not have loaded.");
-            }
-
-            // Dispatch to central tracker (optional)
-            document.dispatchEvent(
-                new CustomEvent("pixel:poll_vote", { detail: pollVoteDetail })
-            );
-
-            // ✅ Debug summary
-            console.log("📊 Cookie Status:");
-            console.log("_fbp:", getCookie("_fbp"));
-            console.log("_fbc:", getCookie("_fbc"));
-            console.log("fb_event_id:", getCookie("fb_event_id"));
-        })();
-
-
-    })
-    .catch(error => {
-        showMessage(pollId, error.message);
-    })
-    .finally(() => {
-        globalVoteButton.disabled = false;
-        globalVoteButton.innerHTML = originalButtonText;
-    });
-}
-
-// Update poll results with colorful bars
 function updatePollResults(pollId, results, totalVotes) {
     const container = document.getElementById(`results-container-${pollId}`);
+    if (!container) return;
     container.innerHTML = '';
-    
-    if (!results || results.length === 0) {
-        container.innerHTML = '<p>No results available yet.</p>';
-        return;
-    }
-    
+
     results.forEach(option => {
         const optionEl = document.createElement('div');
         optionEl.className = 'result-item';
-        
+
         optionEl.innerHTML = `
             <div class="flex justify-between items-center">
-                <span class="font-medium">${option.text || ''}</span>
+                <span class="font-medium">${escapeHtml(option.text || '')}</span>
                 <span class="font-semibold">${option.percentage}%</span>
             </div>
             <div class="result-bar-container">
@@ -981,16 +753,136 @@ function updatePollResults(pollId, results, totalVotes) {
             </div>
             <div class="result-text">
                 <span>${option.votes} vote${option.votes !== 1 ? 's' : ''}</span>
-                ${option.image_url ? `<img src="${option.image_url}" alt="${option.text}" class="result-image">` : ''}
+                ${option.image_url ? `<img src="${option.image_url}" alt="${escapeHtml(option.text || '')}" class="result-image">` : ''}
             </div>
         `;
-        
         container.appendChild(optionEl);
     });
-    
-    // Update total votes
-    document.getElementById(`total-votes-${pollId}`).textContent = totalVotes;
-    document.getElementById(`poll-total-votes-${pollId}`).textContent = totalVotes;
+
+    const totalEl1 = document.getElementById(`total-votes-${pollId}`);
+    const totalEl2 = document.getElementById(`poll-total-votes-${pollId}`);
+    if (totalEl1) totalEl1.textContent = totalVotes;
+    if (totalEl2) totalEl2.textContent = totalVotes;
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"'`=\/]/g, function(ch) {
+        return {
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;',
+            "'": '&#39;', '/': '&#x2F;', '`': '&#x60;', '=': '&#x3D;'
+        }[ch];
+    });
+}
+
+// global vote button
+function voteAllPolls() {
+    if (!currentActivePollId) {
+        const firstPoll = document.querySelector('.poll-card');
+        if (firstPoll) currentActivePollId = firstPoll.id.replace('poll-', '');
+        else {
+            showMessage('global', "No poll found to vote on.");
+            return;
+        }
+    }
+    vote(currentActivePollId);
+}
+
+// main vote function
+function vote(pollId) {
+    const form = document.getElementById(`poll-form-${pollId}`);
+    if (!form) { showMessage('global', 'Poll form not found.'); return; }
+
+    const inputs = form.querySelectorAll('input[name="option"]:checked');
+    const optionIds = Array.from(inputs).map(i => parseInt(i.value));
+    const selectedTexts = Array.from(inputs).map(i => i.dataset.optionText || i.value);
+
+    if (!optionIds.length) {
+        showMessage(pollId, "Please select at least one option.");
+        return;
+    }
+
+    const globalBtn = document.querySelector('.global-vote-button');
+    const originalText = globalBtn ? globalBtn.innerHTML : null;
+    if (globalBtn) { globalBtn.disabled = true; globalBtn.innerHTML = '<span>Voting...</span>'; }
+
+    fetch("{% url 'ajax_vote' %}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken")
+        },
+        body: JSON.stringify({ poll_id: pollId, option_ids: optionIds })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) throw new Error(data.error);
+
+        // UI updates
+        afterVoting(pollId);
+        updatePollResults(pollId, data.results, data.total_votes);
+
+        // Promo
+        if (data.promo_code) {
+            const elMsg = document.getElementById(`promo-message-${pollId}`);
+            const elCode = document.getElementById(`promo-code-${pollId}`);
+            const elDisc = document.getElementById(`promo-discount-${pollId}`);
+            const elValid = document.getElementById(`promo-valid-until-${pollId}`);
+            if (elMsg) elMsg.textContent = data.promo_message;
+            if (elCode) elCode.textContent = data.promo_code;
+            if (elDisc) elDisc.textContent = data.discount;
+            if (elValid) elValid.textContent = data.valid_until || '';
+        }
+        if (data.shop_now_url) {
+            const shopNow = document.getElementById(`shop-now-link-${pollId}`);
+            if (shopNow) shopNow.href = data.shop_now_url;
+        }
+
+        showMessage(pollId, data.message || 'Thank you for voting!', false);
+
+        // -------------------------
+        // FIRE PIXEL (use server event_id returned)
+        // -------------------------
+        const eventId = data.event_id; // server-generated event id
+        const fbc = getCookie("_fbc");
+        const fbp = getCookie("_fbp");
+
+        console.log('📌 Browser PollVote eventID:', eventId);
+
+        const payload = {
+            poll_id: pollId,
+            option_ids: optionIds,
+            option_texts: selectedTexts,
+            total_votes: data.total_votes,
+            content_type: "poll",
+            content_name: data.poll_title || "Poll Vote",
+            content_ids: [`poll_${pollId}`],
+            content_category: "Poll",
+            currency: "BDT",
+            value: 1.0,
+            event_source_url: window.location.href,
+            action_source: 'website',
+            fbc: fbc,
+            fbp: fbp,
+            page_title: document.title,
+            user_role: window.CURRENT_USER_ROLE || "guest",
+            client_user_agent: navigator.userAgent,
+        };
+
+        if (typeof fbq !== 'undefined' && eventId) {
+            fbq('trackCustom', 'PollVote', payload, { eventID: eventId });
+            console.log('PollVote Browser Event Fired', payload, eventId);
+        } else {
+            console.warn('fbq not loaded or eventId missing', !!window.fbq, !!eventId);
+        }
+    })
+    .catch(err => {
+        showMessage(pollId, err.message || 'Vote failed. Please try again.');
+    })
+    .finally(() => {
+        if (globalBtn) { globalBtn.disabled = false; globalBtn.innerHTML = originalText; }
+    });
 }
 </script>
+
+
 {% endblock extra_js %}

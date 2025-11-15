@@ -467,33 +467,56 @@ function downloadPDF() {
     html2pdf().from(element).set(opt).save();
 }
 
-document.addEventListener("DOMContentLoaded", function () {
-    const purchaseData = JSON.parse('{{ purchaseData|escapejs }}');
-    const totalValue = parseFloat({{ total_value|floatformat:2 }}) || 0;
-    const totalQuantity = parseInt({{ total_quantity }}) || 0;
-    const eventId = '{{ event_id }}'; // Server CAPI event_id for deduplication
+(function(){
+  function getCookie(name){
+    const m = document.cookie.match(new RegExp("(^| )"+name+"=([^;]+)"));
+    return m ? decodeURIComponent(m[2]) : null;
+  }
 
-    purchaseData.contents.forEach(c => c.item_price = parseFloat(c.item_price) || 0);
+  document.addEventListener("DOMContentLoaded", function(){
 
-    if (typeof fbq !== "undefined") {
-        fbq('track', 'Purchase', {
-            content_ids: purchaseData.contents.map(x => x.id),
-            content_name: purchaseData.contents.map(x => x.content_name).join(", "),
-            content_type: 'product',
-            content_category: purchaseData.contents.map(x => x.content_category).join(", "),
-            value: totalValue,
-            currency: 'BDT',
-            num_items: totalQuantity,
-            event_source_url: window.location.href,
-            page_title: document.title,
-            user_role: "{{ request.user.is_authenticated|yesno:'logged_in,guest' }}",
-        }, { eventID: eventId });
-
-        console.log("✅ Browser Purchase event fired with EventID:", eventId);
-    } else {
-        console.warn("⚠️ fbq not loaded yet!");
+    // WAIT UNTIL FBQ EXISTS
+    function waitForFbq(callback){
+      if (typeof fbq !== "undefined") callback();
+      else setTimeout(() => waitForFbq(callback), 50);
     }
-});
+
+    waitForFbq(function(){
+
+      // ---------------------------
+      // PAGEVIEW
+      // ---------------------------
+      const pvId = getCookie("fb_event_id");
+      fbq("track", "PageView", {
+        value: 1.0,
+        currency: "BDT",
+        content_ids: [window.location.pathname],
+        content_type: "page",
+        content_category: "Order Confirmation",
+        action_source: "website",
+        event_source_url: window.location.href,
+        page_title: document.title,
+      }, { eventID: pvId });
+
+      console.log("🔥 Browser PageView:", pvId);
+
+      // ---------------------------
+      // PURCHASE
+      // ---------------------------
+      const purchaseId = getCookie("purchase_event_id") || "{{ event_id }}";
+      const purchaseData = JSON.parse('{{ purchaseData|escapejs }}');
+
+      purchaseData.fbc = getCookie("_fbc");
+      purchaseData.fbp = getCookie("_fbp");
+      purchaseData.action_source = "website";
+
+      fbq("track", "Purchase", purchaseData, { eventID: purchaseId });
+
+      console.log("🔥 Browser Purchase:", purchaseId);
+
+    });
+  });
+})();
 
 
     </script>

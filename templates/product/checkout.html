@@ -320,97 +320,149 @@ document.addEventListener('DOMContentLoaded', function() {
     const phoneError = document.getElementById('phoneError');
     const checkoutForm = document.getElementById('checkout-form');
     let isPhoneValid = false;
-    
-    // Function to validate phone via AJAX
+
+    // -----------------------------
+    // Phone validation via AJAX
+    // -----------------------------
     function validatePhone() {
         const phone = phoneInput.value.trim();
-        
-        // Clear previous error
         phoneError.textContent = '';
-        phoneInput.classList.remove('is-invalid');
-        phoneInput.classList.remove('is-valid');
-        
-        // Only validate if there's input
-        if (phone.length === 0) {
-            isPhoneValid = false;
-            return;
-        }
-        
-        // Create FormData object
+        phoneInput.classList.remove('is-invalid', 'is-valid');
+
+        if (!phone) { isPhoneValid = false; return; }
+
         const formData = new FormData();
         formData.append('phone', phone);
         formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
-        
-        // Send AJAX request
+
         fetch('', {
             method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            },
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
             body: formData
         })
-        .then(response => response.json())
+        .then(res => res.json())
         .then(data => {
             if (data.valid) {
-                phoneInput.classList.remove('is-invalid');
                 phoneInput.classList.add('is-valid');
                 isPhoneValid = true;
             } else {
-                phoneInput.classList.remove('is-valid');
                 phoneInput.classList.add('is-invalid');
                 phoneError.textContent = data.message;
                 isPhoneValid = false;
             }
         })
-        .catch(error => {
-            console.error('Error:', error);
-        });
+        .catch(err => console.error('Phone validation error:', err));
     }
-    
-    // Validate on input change with debounce
+
     let debounceTimer;
     phoneInput.addEventListener('input', function() {
         clearTimeout(debounceTimer);
-        // Only validate if we have at least 3 characters (to avoid validating partial numbers)
-        if (this.value.length >= 3) {
-            debounceTimer = setTimeout(validatePhone, 800);
-        }
+        if (this.value.length >= 3) debounceTimer = setTimeout(validatePhone, 800);
     });
-    
-    // Validate on blur (when user leaves the field)
     phoneInput.addEventListener('blur', validatePhone);
-    
-    // Prevent form submission if phone is invalid
+
     checkoutForm.addEventListener('submit', function(e) {
-        // If phone hasn't been validated yet, validate it now
         if (!isPhoneValid) {
             validatePhone();
-            
-            // Wait for validation to complete
             setTimeout(() => {
                 if (!isPhoneValid) {
                     e.preventDefault();
-                    // Scroll to error if exists
-                    if (phoneError.textContent) {
-                        phoneInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        phoneInput.focus();
-                    }
+                    if (phoneError.textContent) phoneInput.scrollIntoView({behavior:'smooth', block:'center'});
+                    phoneInput.focus();
                 }
             }, 100);
-        } else if (!isPhoneValid) {
-            e.preventDefault();
-            phoneInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            phoneInput.focus();
         }
     });
-    
-    // Auto-validate phone if it has a value when page loads (useful when returning with errors)
-    if (phoneInput.value) {
-        validatePhone();
-    }
+
+    if (phoneInput.value) validatePhone();
 });
 
+// -----------------------------
+// InitiateCheckout Pixel Event
+// -----------------------------
+(function(){
+  function parsePrice(v){const n=parseFloat(v);return isFinite(n)?n:0;}
+  function parseIntSafe(v){const n=parseInt(v);return isFinite(n)?n:0;}
+  function getCookie(name){const m=document.cookie.match(new RegExp("(^| )"+name+"=([^;]+)"));return m?decodeURIComponent(m[2]):null;}
+  function deleteCookie(name){document.cookie = encodeURIComponent(name) + "=; path=/; max-age=0; SameSite=Lax";}
+
+  function fireEvent(eventName, payload, eventID){
+    if(!window.fbq){console.warn("⚠️ FBX: fbq not loaded for",eventName); return;}
+    try{
+      fbq("track", eventName, payload, eventID?{eventID}:undefined);
+      console.log(`✅ FBX fired: ${eventName}`, payload, eventID?`EventID: ${eventID}`:"");
+    }catch(err){console.error("❌ FBX fire error:",err);}
+  }
+
+  document.addEventListener("DOMContentLoaded", function(){
+    // Read the checkout event_id that Buy Now set
+    const eventId = getCookie("fb_event_id");
+    if(!eventId){
+      console.warn("⚠️ FBX: fb_event_id cookie not found — browser InitiateCheckout will not use BuyNow event_id.");
+      return;
+    }
+
+    // Build cart data (from Django context)
+    const cartItems = [
+      {% for it in cart_items %}
+      {
+        id: "{{ it.product_id }}",
+        product_code: "{{ it.product_id }}",
+        name: "{{ it.product_name|escapejs }}",
+        category: "{{ it.product_category|default:'Products'|escapejs }}",
+        price: {{ it.product_price|floatformat:2 }},
+        quantity: {{ it.quantity }},
+        size: "{{ it.product_size|default:'' }}",
+        color: "{{ it.product_color|default:'' }}"
+      }{% if not forloop.last %},{% endif %}
+      {% endfor %}
+    ];
+
+    if(!cartItems.length){
+      console.warn("No cart items found for InitiateCheckout payload.");
+      // still clear cookie to avoid reuse for future pages
+      deleteCookie("fb_event_id");
+      return;
+    }
+
+    const contentIds = cartItems.map(i => i.product_code || i.id);
+    const contentNames = cartItems.map(i => i.name);
+    const contentCategories = cartItems.map(i => i.category);
+    const totalValue = cartItems.reduce((sum,i) => sum + (parseFloat(i.price || 0) * (i.quantity || 1)), 0);
+    const totalQuantity = cartItems.reduce((sum,i) => sum + (i.quantity || 0), 0);
+
+    const payload = {
+      content_ids: contentIds,
+      content_name: contentNames.join(", "),
+      content_type: "product",
+      content_category: contentCategories.join(", "),
+      currency: "BDT",
+      value: parsePrice(totalValue),
+      quantity: parseIntSafe(totalQuantity),
+      contents: cartItems.map(i => ({
+        id: i.product_code || i.id,
+        quantity: i.quantity,
+        item_price: parsePrice(i.price)
+      })),
+      event_source_url: window.location.href,
+      action_source: "website",
+      page_title: document.title,
+      user_role: "{{ CURRENT_USER_ROLE|default:'guest' }}",
+      client_user_agent: navigator.userAgent
+    };
+    payload.fbc = getCookie("_fbc");
+    payload.fbp = getCookie("_fbp");
+
+    // Fire browser InitiateCheckout with exactly the cookie event_id
+    fireEvent("InitiateCheckout", payload, eventId);
+
+    // Clear cookie after use (prevents later confusion)
+    deleteCookie("fb_event_id");
+  });
+})();
 </script>
+
+
 {% endblock extra_js %}
     
     

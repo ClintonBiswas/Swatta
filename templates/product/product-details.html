@@ -775,6 +775,37 @@ function validateReviewText(textarea) {
     }
 }
 
+//pixel for view content
+function getCookie(name) {
+    const m = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+    return m ? m[2] : null;
+}
+
+const vcEventId = getCookie("vc_event_id");
+const fbc = getCookie("_fbc");
+const fbp = getCookie("_fbp");
+
+fbq('track', 'ViewContent', {
+    content_ids: ["{{ products.product_code }}"],
+    content_name: "{{ products.product_name|escapejs }}",
+    content_type: "product",
+    currency: "BDT",
+    value: {{ products.discounted_price }},
+    content_category: "{{ products.product_category.title|default:'Products' }}",
+    event_source_url: window.location.href,
+    page_title: document.title,
+    action_source: "website",
+    num_items: 1,
+    contents: [{
+        id: "{{ products.product_code }}",
+        quantity: 1,
+        item_price: parseFloat("{{ products.discounted_price }}")
+    }],
+    fbc: fbc,
+    fbp: fbp,
+}, { eventID: vcEventId });
+
+console.log("ViewContent Browser fired with eventID =", vcEventId);
 
 </script>
 
