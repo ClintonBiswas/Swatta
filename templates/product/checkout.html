@@ -447,7 +447,7 @@ document.addEventListener('DOMContentLoaded', function() {
       event_source_url: window.location.href,
       action_source: "website",
       page_title: document.title,
-      user_role: "{{ CURRENT_USER_ROLE|default:'guest' }}",
+      user_role: window.CURRENT_USER_ROLE,
       client_user_agent: navigator.userAgent
     };
     payload.fbc = getCookie("_fbc");

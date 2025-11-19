@@ -537,81 +537,99 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function createProductCard(product) {
-        const card = document.createElement('div');
-        card.className = 'product-single-card';
-        
-        // Generate star ratings HTML
-        let starsHtml = '';
-        const fullStars = Math.floor(product.average_rating);
-        const hasHalfStar = product.average_rating % 1 >= 0.5;
-        
-        for (let i = 1; i <= 5; i++) {
-            if (i <= fullStars) {
-                starsHtml += '<li><i class="bi bi-star-fill"></i></li>';
-            } else if (i === fullStars + 1 && hasHalfStar) {
-                starsHtml += '<li><i class="bi bi-star-half"></i></li>';
-            } else {
-                starsHtml += '<li><i class="bi bi-star"></i></li>';
-            }
+    const card = document.createElement('div');
+    card.className = 'product-single-card';
+
+    // Safe category
+    const category = product.product_category && product.product_category.title
+        ? product.product_category.title
+        : "Products";
+        console.log("product-category",category)
+
+    // Generate star ratings
+    let starsHtml = '';
+    const fullStars = Math.floor(product.average_rating);
+    const hasHalfStar = product.average_rating % 1 >= 0.5;
+
+    for (let i = 1; i <= 5; i++) {
+        if (i <= fullStars) {
+            starsHtml += '<li><i class="bi bi-star-fill"></i></li>';
+        } else if (i === fullStars + 1 && hasHalfStar) {
+            starsHtml += '<li><i class="bi bi-star-half"></i></li>';
+        } else {
+            starsHtml += '<li><i class="bi bi-star"></i></li>';
         }
-        
-        card.innerHTML = `
-    <a href="/product-details/${product.product_slug}/" 
+    }
+
+    card.innerHTML = `
+<a href="/product-details/${product.product_slug}/" 
    class="trackable-product" 
    data-product-slug="${product.product_slug}"
    style="text-decoration: none;">
-        <div class="product-card-img">
-            <img src="${product.product_image}" alt="${product.product_name}" loading="lazy">
-        </div>
-        <div class="product-card-content pb-0">
-            <h6 class="product-card-title">${product.product_name}</h6>
-            <ul class="product-card-ratings">
-                ${starsHtml}
-                <li class="review-count">(${product.total_reviews} Reviews)</li>
-            </ul>
-            <div class="product-card-price d-flex justify-content-center align-items-center">
-                <p class="main-price">&#2547;${product.discounted_price}</p>
-                <p class="discount-price">&#2547;${product.product_price}</p>
-            </div>
-        </div>
-    </a>
-<div class="product-card-buttons">
-    ${(product.product_size.length > 0 || product.product_colors.length > 0) ? `
-                
-                <a class="view-details-button" href="/product-details/${product.product_slug}/">
-                    <i class="bi bi-eye"></i>&nbsp;View Details
-                </a>
-            ` : `
-            <div class="mobile-buy-button">
-                <a href="#" class="buy-noww buy-now-mobile"
-                   data-product="${product.id}"
-                   data-product-name="${product.name}"
-                   data-product-price="${product.price}">
-                   <i class="bi bi-bag"></i>&nbsp;Buy now
-                </a>
-            </div>
-            
-                
-                    <div class="product-card-button-group">
-                        <a href="#" class="buy-noww buy-now-btn"
-                        data-product="${product.id}"
-                        data-product-name="${product.name}"
-                        data-product-price="${product.price}">
-                        <i class="bi bi-bag"></i>&nbsp;Buy now
-                        </a>
-                        <a href="#" class="add-to-cartt add-to-cart-btn"
-                        data-product="${product.id}"
-                        data-product-name="${product.name}"
-                        data-product-price="${product.price}">
-                        <i class="bi bi-cart-check-fill"></i>&nbsp;Add to cart
-                        </a>
-                    </div>
-            `}
-        `;
+    <div class="product-card-img">
+        <img src="${product.product_image}" alt="${product.product_name}" loading="lazy">
+    </div>
 
-        
-        return card;
-    }
+    <div class="product-card-content pb-0">
+        <h6 class="product-card-title">${product.product_name}</h6>
+        <ul class="product-card-ratings">
+            ${starsHtml}
+            <li class="review-count">(${product.total_reviews} Reviews)</li>
+        </ul>
+
+        <div class="product-card-price d-flex justify-content-center align-items-center">
+            <p class="main-price">&#2547;${product.discounted_price}</p>
+            <p class="discount-price">&#2547;${product.product_price}</p>
+        </div>
+    </div>
+</a>
+
+<div class="product-card-buttons">
+
+${
+    (product.product_size.length > 0 || product.product_colors.length > 0)
+        ? `
+        <a class="view-details-button" href="/product-details/${product.product_slug}/">
+            <i class="bi bi-eye"></i>&nbsp;View Details
+        </a>
+        `
+        : `
+        <div class="mobile-buy-button">
+            <a href="#" class="buy-noww buy-now-mobile"
+                data-product="${product.id}"
+                data-category="${category}"
+                data-product-name="${product.product_name}"
+                data-product-price="${product.discounted_price}">
+                <i class="bi bi-bag"></i>&nbsp;Buy now
+            </a>
+        </div>
+
+        <div class="product-card-button-group">
+            <a href="#" class="buy-noww buy-now-btn"
+                data-product="${product.id}"
+                data-category="${category}"
+                data-product-name="${product.product_name}"
+                data-product-price="${product.discounted_price}">
+                <i class="bi bi-bag"></i>&nbsp;Buy now
+            </a>
+
+            <a href="#" class="add-to-cartt add-to-cart-btn"
+                data-product="${product.id}"
+                data-category="${category}"
+                data-product-name="${product.product_name}"
+                data-product-price="${product.discounted_price}">
+                <i class="bi bi-cart-check-fill"></i>&nbsp;Add to cart
+            </a>
+        </div>
+        `
+}
+
+</div>
+`;
+
+    return card;
+}
+
     
 });
     </script>

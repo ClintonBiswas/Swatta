@@ -45,6 +45,7 @@
             <a href="#"
                class="add-to-cartt add-to-cart-btn"
                data-product="{{ product.id }}"
+               data-category="{{ product.product_category.title }}"
                data-product-name="{{ product.product_name|escapejs }}"
                data-product-price="{{ product.discounted_price }}">
                 <i class="bi bi-cart-check-fill"></i>&nbsp;Add to cart
@@ -54,6 +55,7 @@
             <a href="#"
                class="buy-noww buy-now-mobile"
                data-product="{{ product.id }}"
+               data-category="{{ product.product_category.title }}"
                data-product-name="{{ product.product_name|escapejs }}"
                data-product-price="{{ product.discounted_price }}">
                 <i class="bi bi-bag"></i>&nbsp;Buy now

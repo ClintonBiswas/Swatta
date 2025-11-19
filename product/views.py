@@ -216,7 +216,7 @@ def ProductDetails(request, product_slug):
     custom_data = {
         "content_ids": [product.product_code],
         "content_name": product.product_name,
-        "content_type": "product",
+        "content_type": product.product_category.title,
         "currency": "BDT",
         "value": float(product.discounted_price()),
         "content_category": product.product_category.title if hasattr(product.product_category, "title") else "Products",
@@ -377,7 +377,7 @@ def add_to_cart(request):
         custom_data = {
             "content_ids": [product.product_code],
             "content_name": product.product_name,
-            "content_type": "product",
+            "content_type": product.product_category.title,
             "content_category": getattr(product.product_category,"title","Products"),
             "currency": "BDT",
             "value": float(product.discounted_price() if hasattr(product,"discounted_price") else product.price) * quantity,
@@ -583,7 +583,7 @@ def buy_now(request):
         custom_data = {
             "content_ids": [str(product.product_code)] if getattr(product,"product_code",None) else [],
             "content_name": str(product.product_name),
-            "content_type": "product",
+            "content_type": product.product_category.title,
             "content_category": getattr(product.product_category,"title","Products"),
             "currency": "BDT",
             "value": price * quantity,
@@ -646,8 +646,11 @@ def checkout_view(request):
     # --------------------------
     # 3. Default FB Event ID
     # --------------------------
-    event_id = f"evt_checkout_{int(time.time()*1000)}_{request.user.id if request.user.is_authenticated else 'guest'}"
+    event_id = request.COOKIES.get("fb_event_id")
+    if not event_id:
+        event_id = f"evt_checkout_{int(time.time()*1000)}_{request.user.id if request.user.is_authenticated else 'guest'}"
 
+    print("checkout-event-id: ", event_id)
     # --------------------------
     # 4. Handle POST
     # --------------------------
@@ -1532,7 +1535,7 @@ def facebook_product_feed(request):
         sale_price = p.discounted_price()  # Use your method
 
         xml_data += "<item>\n"
-        xml_data += f"<g:id>{escape(p.product_code)}</g:id>\n"
+        xml_data += f"<g:id>{escape(p.id)}</g:id>\n"
         xml_data += f"<title>{escape(p.product_name)}</title>\n"
         xml_data += f"<description>{escape(p.product_details[:500])}</description>\n"
         xml_data += f"<link>{domain}/product-details/{p.product_slug}/</link>\n"
@@ -1557,7 +1560,7 @@ def facebook_product_feed(request):
             xml_data += f"<g:brand>{escape(p.product_brand.title)}</g:brand>\n"
 
         # SKU / Unique Code
-        xml_data += f"<g:sku>{escape(p.product_code)}</g:sku>\n"
+        xml_data += f"<g:sku>{escape(p.id)}</g:sku>\n"
 
         xml_data += "</item>\n"
 

@@ -210,6 +210,7 @@
     <button type="button"
             class="buy-noww btn-buy-now"
             data-product="{{ products.id }}"
+            data-category="{{ products.product_category.title }}"
             data-product-name="{{ products.product_name|escapejs }}"
             data-product-price="{{ products.discounted_price }}"
             {% if not products.product_status %}disabled{% endif %}>
@@ -219,6 +220,7 @@
     <button type="button"
             class="add-to-cartt btn-add-to-cart"
             data-product="{{ products.id }}"
+            data-category="{{ products.product_category.title }}"
             data-product-name="{{ products.product_name|escapejs }}"
             data-product-price="{{ products.discounted_price }}"
             {% if not products.product_status %}disabled{% endif %}>
@@ -227,7 +229,7 @@
 </div>
 <div class="fb-data"
      data-type="product"
-     data-id="{{ products.product_code }}"
+     data-id="{{ products.id }}"
      data-name="{{ products.product_name|escapejs }}"
      data-price="{{ products.discounted_price }}"
      data-category="{{ products.product_category.title|default:'Products' }}"
@@ -786,7 +788,7 @@ const fbc = getCookie("_fbc");
 const fbp = getCookie("_fbp");
 
 fbq('track', 'ViewContent', {
-    content_ids: ["{{ products.product_code }}"],
+    content_ids: ["{{ products.id }}"],                      // FIXED
     content_name: "{{ products.product_name|escapejs }}",
     content_type: "product",
     currency: "BDT",
@@ -797,7 +799,7 @@ fbq('track', 'ViewContent', {
     action_source: "website",
     num_items: 1,
     contents: [{
-        id: "{{ products.product_code }}",
+        id: "{{ products.id }}",                             // FIXED
         quantity: 1,
         item_price: parseFloat("{{ products.discounted_price }}")
     }],
@@ -806,7 +808,6 @@ fbq('track', 'ViewContent', {
 }, { eventID: vcEventId });
 
 console.log("ViewContent Browser fired with eventID =", vcEventId);
-
 </script>
 
 {% endblock extra_js %}
