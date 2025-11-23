@@ -214,7 +214,7 @@ def ProductDetails(request, product_slug):
         user_data["external_id"] = str(request.user.id)
 
     custom_data = {
-        "content_ids": [product.product_code],
+        "content_ids": [product.id],
         "content_name": product.product_name,
         "content_type": product.product_category.title,
         "currency": "BDT",
@@ -375,7 +375,7 @@ def add_to_cart(request):
         }
 
         custom_data = {
-            "content_ids": [product.product_code],
+            "content_ids": [product.id],
             "content_name": product.product_name,
             "content_type": product.product_category.title,
             "content_category": getattr(product.product_category,"title","Products"),
@@ -391,8 +391,7 @@ def add_to_cart(request):
             event_name="AddToCart",
             user_data=user_data,
             custom_data=custom_data,
-            event_id=data.get("event_id"),
-            test_event_code="TEST66176"
+            event_id=data.get("event_id")
         )
 
         print(f"📌 AddToCart event_id: {event_id}")
@@ -581,7 +580,7 @@ def buy_now(request):
 
         price = float(product.discounted_price() if hasattr(product,"discounted_price") else getattr(product,"price",0.0))
         custom_data = {
-            "content_ids": [str(product.product_code)] if getattr(product,"product_code",None) else [],
+            "content_id": str(product.id),
             "content_name": str(product.product_name),
             "content_type": product.product_category.title,
             "content_category": getattr(product.product_category,"title","Products"),
@@ -597,8 +596,8 @@ def buy_now(request):
         print(f"📌 BuyNow AddToCart event_id: {add_event_id} | Checkout event_id: {checkout_event_id}")
 
         # Send CAPI events
-        send_event("AddToCart", user_data=user_data, custom_data=custom_data, event_id=add_event_id, test_event_code="TEST66176")
-        send_event("InitiateCheckout", user_data=user_data, custom_data=custom_data, event_id=checkout_event_id, test_event_code="TEST66176")
+        send_event("AddToCart", user_data=user_data, custom_data=custom_data, event_id=add_event_id)
+        send_event("InitiateCheckout", user_data=user_data, custom_data=custom_data, event_id=checkout_event_id)
 
         redirect_url = reverse("product:checkout")
         return JsonResponse({
@@ -984,7 +983,8 @@ def order_confirmation_view(request, order_id):
         category = getattr(item.product.product_category, 'title', 'Products')[:100]
 
         contents.append({
-            "id": str(item.product.product_code)[:100],
+            "id": str(item.product.id),
+            "content_id": str(item.product.id),
             "content_name": name,
             "content_category": category,
             "quantity": item.quantity,

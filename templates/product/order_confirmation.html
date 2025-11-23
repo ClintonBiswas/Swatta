@@ -310,14 +310,22 @@
             </span>
         </div>
         <div class="fb-data"
-            data-type="order"
-            data-order-id="{{ order.order_id }}"
-            data-value="{{ total_value }}"
-            data-num-items="{{ total_quantity }}"
-            data-contents='[{% for it in order_items %}{"id":"{{ it.product.product_code }}","quantity":{{ it.quantity }}}{% if not forloop.last %},{% endif %}{% endfor %}]'
-            data-event-id="{{ event_id }}"
-            data-user-role="{{ request.user.is_authenticated|yesno:'logged_in,guest' }}">
-        </div>
+     data-type="order"
+     data-order-id="{{ order.order_id }}"
+     data-value="{{ total_value }}"
+     data-num-items="{{ total_quantity }}"
+     data-contents='[
+        {% for it in order_items %}
+            {"id":"{{ it.product.product_code }}",
+             "content_id":"{{ it.product.id }}",   <!-- ✅ ADDED -->
+             "quantity":{{ it.quantity }}}
+            {% if not forloop.last %},{% endif %}
+        {% endfor %}
+     ]'
+     data-event-id="{{ event_id }}"
+     data-user-role="{{ request.user.is_authenticated|yesno:'logged_in,guest' }}">
+</div>
+
 
 
         <div class="row">
@@ -512,7 +520,7 @@ function downloadPDF() {
 
       fbq("track", "Purchase", purchaseData, { eventID: purchaseId });
 
-      console.log("🔥 Browser Purchase:", purchaseId);
+      console.log("🔥 Browser Purchase:", purchaseId, purchaseData);
 
     });
   });
